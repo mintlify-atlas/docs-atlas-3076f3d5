@@ -1,0 +1,179 @@
+---
+title: "Write and install Prometheus plugins in Python"
+description: "Write Python classes that register new commands in Prometheus's execution loop. Plugins load automatically from ~/.prometheus/plugins/ on startup."
+---
+
+The Prometheus plugin system lets you extend the tool with custom commands written in plain Python. Plugins are loaded automatically at startup from a dedicated directory, and each plugin can register as many commands as it needs. This makes it straightforward to add project-specific shortcuts, integrate external services, or package utility functions for the whole team.
+
+## Plugin directory
+
+Prometheus scans `~/.prometheus/plugins/` at startup. Any `.py` file in that directory (except files starting with `_`) is loaded as a plugin. A registry file at `~/.prometheus/plugins/registry.json` tracks installed plugin metadata.
+
+```
+~/.prometheus/
+└── plugins/
+    ├── registry.json       # Plugin metadata registry
+    ├── my-plugin.py        # Your plugin
+    └── another-plugin.py
+```
+
+## Plugin base class
+
+Every plugin must define a class named `PrometheusPlugin` that extends `Plugin` from `core.plugins`. The base class (`core/plugins.py`) provides the following interface:
+
+```python
+class Plugin:
+    def __init__(self):
+        self.name = "Unknown Plugin"   # Display name
+        self.version = "1.0.0"         # Semver version string
+        self.description = "No description"
+        self.author = "Unknown"
+        self.commands = {}             # Registered command handlers
+
+    def initialize(self):
+        """Called once when the plugin is loaded. Register commands here."""
+        pass
+
+    def register_command(self, command: str, handler: Callable):
+        """Map a command string to a handler function."""
+        self.commands[command] = handler
+
+    def handle_command(self, command: str, args: List[str]) -> bool:
+        """
+        Called by the plugin manager for every user command.
+        Returns True if the command was handled, False otherwise.
+        """
+        if command in self.commands:
+            self.commands[command](args)
+            return True
+        return False
+```
+
+When a user types a command, the `PluginManager` iterates over all loaded plugins and calls `handle_command` until one returns `True`.
+
+## Creating a plugin
+
+Use the built-in scaffold command to generate a plugin file:
+
+```
+> plugin create <name>
+```
+
+This writes a template to `~/.prometheus/plugins/<name>.py` and prints the path. Open the file and implement your commands:
+
+```python
+"""
+weather — Prometheus plugin example
+"""
+
+from core.plugins import Plugin
+
+
+class PrometheusPlugin(Plugin):
+    def __init__(self):
+        super().__init__()
+        self.name = "Weather Plugin"
+        self.version = "1.0.0"
+        self.description = "Show current weather for a city"
+        self.author = "Your Name"
+
+    def initialize(self):
+        """Register plugin commands."""
+        self.register_command("weather", self.handle_weather)
+
+    def handle_weather(self, args):
+        """Handle the 'weather' command."""
+        city = " ".join(args) if args else "London"
+        # Your implementation here
+        print(f"Fetching weather for {city}...")
+```
+
+After saving, restart Prometheus. The plugin loads automatically and prints a confirmation:
+
+```
+✓ Loaded plugin: Weather Plugin v1.0.0
+```
+
+Your new command is immediately available:
+
+```
+> weather Tokyo
+```
+
+## Plugin lifecycle
+
+<Steps>
+  <Step title="Startup scan">
+    Prometheus scans `~/.prometheus/plugins/` for `.py` files.
+  </Step>
+  <Step title="Module load">
+    Each file is imported with `importlib`. If the module defines `PrometheusPlugin`, an instance is created.
+  </Step>
+  <Step title="initialize() called">
+    `initialize()` is called once. This is where you call `register_command()` to map command names to handler functions.
+  </Step>
+  <Step title="Command dispatch">
+    When the user types a command, `PluginManager.handle_command()` tries each loaded plugin in turn. The first plugin to return `True` wins.
+  </Step>
+</Steps>
+
+## Managing plugins
+
+<Tabs>
+  <Tab title="List">
+    ```
+    > plugin list
+    ```
+
+    Shows a table with name, version, description, and author for every loaded plugin.
+  </Tab>
+  <Tab title="Install">
+    ```
+    > plugin install <name> [source]
+    ```
+
+    Installs a plugin from a path or URL. `source` is the location of the plugin file.
+  </Tab>
+  <Tab title="Uninstall">
+    ```
+    > plugin uninstall <name>
+    ```
+
+    Removes the plugin from memory and deletes `~/.prometheus/plugins/<name>.py`.
+  </Tab>
+  <Tab title="Create">
+    ```
+    > plugin create <name>
+    ```
+
+    Generates a scaffold at `~/.prometheus/plugins/<name>.py`. The template is pre-filled with your plugin name and a sample command handler.
+  </Tab>
+</Tabs>
+
+## Plugin registry
+
+The registry at `~/.prometheus/plugins/registry.json` is a JSON object keyed by plugin name. Each entry stores metadata used for listing and uninstalling. The registry is created automatically if it does not exist.
+
+```json
+{
+  "weather": {
+    "name": "Weather Plugin",
+    "version": "1.0.0",
+    "source": "/home/user/.prometheus/plugins/weather.py"
+  }
+}
+```
+
+## Error handling
+
+If a plugin fails to load (import error, missing `PrometheusPlugin` class, or any exception in `initialize()`), Prometheus prints an error and continues loading the remaining plugins:
+
+```
+[red]Error loading plugin /home/user/.prometheus/plugins/broken.py: ...[/red]
+```
+
+A broken plugin never prevents Prometheus from starting.
+
+<Warning>
+  Plugins run with your full user permissions inside the Prometheus process. A malicious plugin can read files, make network requests, and execute arbitrary shell commands. Only install plugins from sources you trust, and review the source code before loading any third-party plugin.
+</Warning>

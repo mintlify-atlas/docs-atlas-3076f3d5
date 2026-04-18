@@ -1,97 +1,74 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Prometheus: run shell commands using plain English"
+description: "Prometheus translates natural language into shell commands and runs them safely. Powered by Google Gemini or local Ollama — no shell expertise required."
 ---
 
-## Setting up
+Prometheus is an AI-powered terminal assistant that lets you describe what you want in plain English and then generates, previews, and runs the correct shell command for you. Whether you use Google Gemini (cloud) or Ollama (local), Prometheus bridges the gap between natural language and the command line — with built-in safety checks, a rich history system, and an extensible plugin architecture.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Prometheus system-wide or in a virtual environment in under two minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first natural-language command and explore interactive mode.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Commands reference" icon="terminal" href="/usage/commands-reference">
+    Every built-in command, subcommand, and flag — with examples and default values.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="AI configuration" icon="microchip" href="/ai/gemini-setup">
+    Set up Google Gemini or Ollama as your AI backend.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What Prometheus does
 
-Everything you need to create world-class documentation.
+Type what you want — Prometheus figures out the command, shows it to you, and runs it. Dangerous operations get a safety warning before anything happens.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+```bash
+prom "find all python files larger than 1MB"
+prom "show disk usage sorted by size"
+prom "create a backup of my documents folder"
+```
 
-## Need inspiration?
+<Steps>
+  <Step title="Install Prometheus">
+    Clone the repository and run the system installer — it sets up a shell alias (`prom` by default) and walks you through choosing an AI backend.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    ```bash
+    git clone https://github.com/roywalk3r/prometheus.git
+    cd prometheus
+    sudo bash system-install.sh
+    ```
+  </Step>
+  <Step title="Configure your AI model">
+    Use Google Gemini (recommended — free tier, fast) or a local Ollama model for full privacy. Set your API key and you're ready.
+
+    ```bash
+    export GEMINI_API_KEY="your-key-here"
+    ```
+  </Step>
+  <Step title="Start using natural language">
+    Launch interactive mode with `prom` or pass a query directly. Prometheus generates the shell command, displays it, and asks for confirmation before running.
+
+    ```bash
+    prom "list all git branches sorted by last commit"
+    ```
+  </Step>
+</Steps>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Safety-first execution" icon="shield-check" href="/features/safety">
+    Dangerous command detection, dry-run preview, and intelligent timeouts protect you from accidents.
+  </Card>
+  <Card title="Plugin system" icon="puzzle-piece" href="/features/plugins">
+    Extend Prometheus with custom commands by dropping a Python file into `~/.prometheus/plugins/`.
+  </Card>
+  <Card title="Smart history" icon="clock-rotate-left" href="/usage/interactive-mode">
+    Bash-style `!!` and `!n` replay, usage statistics, failure analysis, and searchable history UI.
+  </Card>
+  <Card title="Productivity tools" icon="toolbox" href="/features/productivity">
+    Bookmarks, notes, favorites, aliases, templates, workflows, and remote SSH execution.
+  </Card>
+</CardGroup>

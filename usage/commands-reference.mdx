@@ -1,0 +1,294 @@
+---
+title: "Prometheus commands, subcommands, and flags reference"
+description: "Complete reference for every built-in command, interactive session command, quick-action flag, and CLI subcommand available in Prometheus."
+---
+
+Prometheus exposes two layers of commands: interactive commands you type at the `🔥 prometheus ❯` prompt during a session, and CLI subcommands and flags you pass to `prom` directly from your shell. This page documents all of them in one place. Commands marked **interactive only** are not available in one-shot mode.
+
+<AccordionGroup>
+
+  <Accordion title="Session commands (interactive only)">
+    These commands control the Prometheus session itself.
+
+    | Command | Description |
+    |---|---|
+    | `exit` / `quit` / `q` | Exit the interactive session |
+    | `terminate` | Stop a currently running background process |
+    | `help` / `?` | Print the full built-in help reference |
+    | `examples` / `suggestions` | Show a curated list of example queries to try |
+    | `clear` / `cls` | Clear the terminal screen |
+    | `welcome` | Redisplay the welcome screen and banner |
+    | `dry-run on` / `dryrun on` | Enable dry-run mode (preview without executing) |
+    | `dry-run off` / `dryrun off` | Disable dry-run mode |
+    | `model` | Show the currently active AI model and its status |
+    | `use gemini` | Switch to Google Gemini 2.0 Flash (also: `use-gemini`, `switch gemini`, `model gemini`) |
+    | `use ollama` | Switch to local Ollama llama3 (also: `use-ollama`, `switch ollama`, `model ollama`) |
+    | `stats` | Show history statistics: total commands, success rate, most-used |
+    | `doctor` | Run a health check on the Prometheus installation and dependencies |
+  </Accordion>
+
+  <Accordion title="History commands">
+    History commands work in both interactive and one-shot modes (the `prom history` subcommands apply to one-shot; the in-session commands apply to interactive).
+
+    **In-session commands:**
+
+    | Command | Description |
+    |---|---|
+    | `history` | Show full command history |
+    | `history 20` | Show the last N entries |
+    | `history ui` | Open the interactive history browser (select to re-run or fix) |
+    | `history failed` | List only commands that exited with a non-zero code |
+    | `history analysis` / `history analyze` | Show usage patterns, hourly activity, and success rates |
+    | `clear-history` | Prompt to permanently delete all history |
+
+    **Bang commands:**
+
+    | Command | Description |
+    |---|---|
+    | `!!` | Repeat the last command |
+    | `!n` | Repeat the command at history index n (e.g., `!3`) |
+    | `!-n` | Repeat the command n entries ago (e.g., `!-2`) |
+    | `!string` | Repeat the last command that starts with `string` (e.g., `!git`) |
+
+    **CLI subcommands:**
+
+    | Command | Description |
+    |---|---|
+    | `prom history` | Show last 20 history entries |
+    | `prom history clear` | Clear all history after confirmation |
+    | `prom history export [filename]` | Export history to JSON (default: `prometheus_history.json`) |
+  </Accordion>
+
+  <Accordion title="Config commands">
+    **In-session commands (interactive only):**
+
+    | Command | Description |
+    |---|---|
+    | `config` | Display the current configuration as a table |
+    | `config set <key> <value>` | Set a configuration value (booleans and integers are parsed automatically) |
+
+    **CLI subcommands:**
+
+    | Command | Description |
+    |---|---|
+    | `prom config show` | Print a table of all current config values |
+    | `prom config edit` | Open `~/.prometheus/config.json` in `$EDITOR` (falls back to `nano`) |
+    | `prom config reset` | Reset all settings to defaults after confirmation (CLI only) |
+
+    Example config keys: `timeout_seconds`, `default_model`, `use_gemini`, `dry_run`, `history_size`, `auto_confirm_safe`.
+
+    <Note>
+      `config reset` is only available as a CLI subcommand (`prom config reset`). There is no interactive `config reset` command.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Quick-action flags">
+    These flags are available on the command line and also work as `--flag` strings inside an interactive session.
+
+    | Flag | Syntax | Description |
+    |---|---|---|
+    | `--qr` | `prom --qr "https://example.com"` | Generate a QR code for the given text |
+    | `--hash` | `prom --hash "hello world"` | Generate MD5, SHA1, SHA256, and SHA512 hashes for the text |
+    | `--time` | `prom --time "Tokyo"` or `prom --time` | Show local time for a location, or show multiple time zones |
+    | `--encode` | `prom --encode base64 "text"` | Encode text (supported types: `base64`, `hex`, etc.) |
+    | `--shorten` | `prom --shorten "https://example.com/path"` | Generate a hash-based short code for a URL |
+    | `--fix` | `prom --fix` | Retrieve the last failed command and ask the AI to fix it |
+    | `--explain` | `prom --explain` | Retrieve the last command and ask the AI to explain it |
+    | `--dry-run` | `prom --dry-run` | Enable preview mode (sets dry_run in config; use `dry-run off` to disable) |
+    | `--version` | `prom --version` | Print the installed version |
+    | `--no-banner` | `prom --no-banner` | Start the interactive session without the welcome banner |
+
+    <Note>
+      `--decode` and `--calc` are available as interactive commands inside a session (`--decode base64 "text"` and `--calc "expr"`) but are not CLI flags — they cannot be passed directly to `prom` from the shell.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Search commands (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `find <pattern>` | Fuzzy-search for files matching the pattern in the current directory tree |
+    | `grep <pattern>` | Search for the pattern inside files |
+    | `search <name>` | Find matches across the codebase |
+  </Accordion>
+
+  <Accordion title="Context commands (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `status` | Show a quick status panel: git branch, Python env, Node version, Docker |
+    | `ref` / `reference` | Display context-relevant command suggestions for the detected project type |
+    | `analyze` | Run a deep project analysis (file counts, structure, dependencies) |
+    | `describe` / `about` / `project info` | Show a human-readable project description |
+  </Accordion>
+
+  <Accordion title="Watch and timing commands (interactive only)">
+    | Command | Syntax | Description |
+    |---|---|---|
+    | `watch` | `watch <command> [--interval N] [--until-change]` | Re-run a command every N seconds (default: 2). Use `--until-change` to stop when output changes. |
+    | `time` | `time <command>` | Run a command and print its wall-clock execution time |
+    | `benchmark` | `benchmark <command> [runs]` | Run a command N times (default: 5) and display timing statistics |
+
+    Examples:
+    ```
+    watch df -h --interval 5
+    time git status
+    benchmark npm test 10
+    ```
+  </Accordion>
+
+  <Accordion title="Bookmarks (interactive only)">
+    Bookmarks let you save and jump to frequently used directories.
+
+    | Command | Description |
+    |---|---|
+    | `bookmarks` / `bookmark` | List all saved bookmarks |
+    | `bookmark add <name> <path>` | Save a path under a name |
+    | `bookmark remove <name>` | Delete a bookmark |
+    | `jump <name>` | Change the working directory to the bookmarked path |
+  </Accordion>
+
+  <Accordion title="Notes (interactive only)">
+    Notes are stored per-directory, so they stay scoped to the relevant project.
+
+    | Command | Description |
+    |---|---|
+    | `notes` | List all notes for the current directory |
+    | `note "text"` | Add a note for the current directory |
+    | `notes clear` | Delete all notes for the current directory after confirmation |
+    | `notes search "text"` | Search for a string across all notes |
+  </Accordion>
+
+  <Accordion title="Favorites (interactive only)">
+    Favorites save frequently run commands under a short name.
+
+    | Command | Description |
+    |---|---|
+    | `favorites` / `fav` | List all saved favorites |
+    | `favorite add <name> <command>` | Save a command under a name |
+    | `favorite remove <name>` | Delete a favorite |
+    | `fav <name>` | Run the command saved under `name` |
+  </Accordion>
+
+  <Accordion title="Environment variables (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `env` / `env list` | List all environment variables |
+    | `env set <key> <value>` | Set an environment variable for the current session |
+    | `env get <key>` | Print the value of an environment variable |
+    | `env load <name>` | Load variables from a saved environment profile |
+    | `env save [name]` | Save current environment to a profile (default name: `default`) |
+  </Accordion>
+
+  <Accordion title="Import and export (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `export <filename>` | Export all configuration, aliases, bookmarks, and favorites to a file |
+    | `import <filename>` | Import configuration from a previously exported file |
+  </Accordion>
+
+  <Accordion title="Multiline input (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `multiline` | Open an interactive multi-line command builder. Compose a complex command across multiple lines, then execute it all at once. |
+  </Accordion>
+
+  <Accordion title="Aliases (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `alias` / `alias list` | Show all saved aliases in a table |
+    | `alias add <name> <command>` | Create a new alias |
+    | `alias remove <name>` | Delete an alias |
+    | `alias import` | Import aliases from the current shell (bash) |
+  </Accordion>
+
+  <Accordion title="Cache (interactive only)">
+    Prometheus caches AI responses for repeated identical queries to reduce latency.
+
+    | Command | Description |
+    |---|---|
+    | `cache` / `cache stats` | Show cache hit rate, size, and expiry information |
+    | `cache clear` | Invalidate all cached responses |
+    | `cache clean` | Remove only expired cache entries |
+  </Accordion>
+
+  <Accordion title="Templates (interactive only)">
+    Templates are pre-defined sequences of commands for common multi-step tasks.
+
+    | Command | Description |
+    |---|---|
+    | `template` / `template list` | List all available templates |
+    | `template show <name>` | Print the steps in a template |
+    | `template use <name> [key=value ...]` | Run a template, substituting parameters as needed |
+
+    Example:
+    ```
+    template use backup source_dir=/home/user backup_name=daily
+    ```
+  </Accordion>
+
+  <Accordion title="Workflows (interactive only)">
+    Workflows are named multi-step processes that can include conditional steps.
+
+    | Command | Description |
+    |---|---|
+    | `workflow` / `workflow list` | List all available workflows |
+    | `workflow show <name>` | Print the steps and conditions in a workflow |
+    | `workflow run <name>` | Execute a workflow step by step, reporting success or failure for each |
+  </Accordion>
+
+  <Accordion title="Remote execution (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `remote` / `remote list` | List all saved remote hosts |
+    | `remote add <name> <user@host>` | Register a remote host |
+    | `remote remove <name>` | Delete a remote host |
+    | `remote exec <host> <cmd>` | Run a command on a remote host |
+    | `remote test <host>` | Test the SSH connection to a remote host |
+  </Accordion>
+
+  <Accordion title="Sessions (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `session` / `session info` | Show session details: uptime, command count, active AI context |
+    | `session clear` | Clear the in-memory conversation context so the AI starts fresh |
+  </Accordion>
+
+  <Accordion title="Plugins (interactive only)">
+    | Command | Description |
+    |---|---|
+    | `plugin` / `plugin list` | List all installed plugins |
+    | `plugin install <name> [source]` | Install a plugin by name, optionally from a custom source |
+    | `plugin uninstall <name>` | Remove an installed plugin |
+    | `plugin create <name>` | Generate a plugin template to start building your own |
+  </Accordion>
+
+  <Accordion title="CLI subcommands">
+    These are passed directly to your `prom` alias from the shell and do not require an interactive session.
+
+    | Command | Description |
+    |---|---|
+    | `prom update` | Pull the latest code from git and upgrade dependencies |
+    | `prom uninstall` | Remove Prometheus from the system after confirmation |
+    | `prom info` | Print version, install path, config directory, Python version, and AI model |
+    | `prom --version` | Print the version string |
+    | `prom config show` | Display all current configuration values |
+    | `prom config edit` | Open the config file in `$EDITOR` |
+    | `prom config reset` | Reset configuration to defaults |
+    | `prom history` | Show the last 20 history entries |
+    | `prom history clear` | Clear all history |
+    | `prom history export [filename]` | Export history to JSON |
+    | `prom --fix` | Fix the last failed command using AI suggestions |
+    | `prom --explain` | Explain the last executed command |
+    | `prom --qr TEXT` | Generate a QR code for TEXT |
+    | `prom --hash TEXT` | Generate MD5, SHA1, SHA256, and SHA512 hashes |
+    | `prom --time [LOCATION]` | Show local time for a location (or all zones if omitted) |
+    | `prom --encode TYPE TEXT` | Encode TEXT using TYPE (e.g. `base64`, `hex`) |
+    | `prom --shorten URL` | Generate a hash-based short code for a URL |
+    | `prom --dry-run` | Enable preview mode (persists in config) |
+    | `prom --no-banner` | Skip the welcome banner |
+  </Accordion>
+
+</AccordionGroup>
+
+<Tip>
+  To see a condensed help reference from within an interactive session, type `help` or `?`. For keyboard shortcut help, press **Alt+H**.
+</Tip>

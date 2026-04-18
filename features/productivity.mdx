@@ -1,0 +1,305 @@
+---
+title: "Productivity tools: bookmarks, notes, and workflows"
+description: "Prometheus includes directory bookmarks, session notes, favorites, aliases, parameterized templates, multi-step workflows, and SSH remote execution."
+---
+
+Prometheus bundles a full set of productivity tools so you can spend less time retyping commands and more time getting work done. All data is stored in `~/.prometheus/` as JSON, making it easy to back up or share across machines.
+
+## Bookmarks
+
+Save frequently visited directories and jump to them by name. Bookmarks are stored in `~/.prometheus/bookmarks.json`.
+
+| Command | Description |
+|---------|-------------|
+| `bookmarks` or `bookmark` | List all saved bookmarks |
+| `bookmark add <name> <path>` | Save a directory path under a name |
+| `bookmark remove <name>` | Delete a bookmark |
+| `jump <name>` | Change to the bookmarked directory |
+
+```
+> bookmark add proj ~/code/my-project
+> jump proj
+```
+
+The bookmark list shows a checkmark (`✓`) next to paths that still exist on disk and an `✗` for paths that have been deleted.
+
+## Notes
+
+Attach quick notes to any directory. Notes are scoped per directory and stored in `~/.prometheus/notes/`.
+
+| Command | Description |
+|---------|-------------|
+| `notes` | List notes for the current directory |
+| `note "text"` | Add a note to the current directory |
+| `notes clear` | Delete all notes for the current directory |
+| `notes search "text"` | Search all notes across all directories |
+
+```
+> note "remember to run migrations before deploying"
+> notes
+> notes search "migration"
+```
+
+Each note is timestamped and supports optional tags.
+
+## Favorites
+
+Save any command under a memorable name and re-run it instantly. Favorites are stored in `~/.prometheus/favorites.json` and track how many times each has been used.
+
+| Command | Description |
+|---------|-------------|
+| `favorites` or `fav` | List all saved favorites |
+| `favorite add <name> <command>` | Save a command under a name |
+| `favorite remove <name>` | Remove a favorite |
+| `fav <name>` | Execute the saved command |
+
+```
+> favorite add serve "python3 -m http.server 8080"
+> fav serve
+```
+
+## Aliases
+
+Aliases are short expansions for frequently typed commands. They are stored in `~/.prometheus/aliases.json` and expanded automatically before the AI sees your input.
+
+| Command | Description |
+|---------|-------------|
+| `alias` or `alias list` | Show all aliases |
+| `alias add <name> <command>` | Create or update an alias |
+| `alias remove <name>` | Delete an alias |
+| `alias import` | Import aliases from `~/.bashrc` or `~/.bash_aliases` |
+
+```
+> alias add deploy "git pull && npm install && npm run build"
+> deploy
+→ git pull && npm install && npm run build
+```
+
+Prometheus ships with built-in aliases grouped by category:
+
+<AccordionGroup>
+  <Accordion title="Git aliases">
+    `gs` → `git status`, `ga` → `git add .`, `gc` → `git commit -m`, `gp` → `git push`, `gl` → `git pull`, `gd` → `git diff`, `gco` → `git checkout`, `gb` → `git branch`, `glog` → `git log --oneline --graph --decorate`
+  </Accordion>
+  <Accordion title="Docker aliases">
+    `dp` → `docker ps`, `dpa` → `docker ps -a`, `di` → `docker images`, `dex` → `docker exec -it`, `dlog` → `docker logs`, `dstop` → `docker stop $(docker ps -aq)`, `drm` → `docker rm $(docker ps -aq)`
+  </Accordion>
+  <Accordion title="System aliases">
+    `ll` → `ls -alh`, `la` → `ls -A`, `ports` → `netstat -tulpn`, `psg` → `ps aux | grep`, `myip` → `curl ifconfig.me`, `cpu` → `top -bn1 | grep Cpu`, `mem` → `free -h`, `disk` → `df -h`
+  </Accordion>
+  <Accordion title="Python aliases">
+    `py` → `python3`, `pip` → `pip3`, `venv` → `python3 -m venv venv && source venv/bin/activate`, `pyserver` → `python3 -m http.server`
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Run `alias import` to pull in aliases you already have defined in your shell config. Prometheus skips any alias name that already exists, so it won't overwrite your customizations.
+</Tip>
+
+## Templates
+
+Templates are parameterized command sequences stored in `~/.prometheus/templates.json`. Parameters use `{placeholder}` syntax and are substituted at run time.
+
+| Command | Description |
+|---------|-------------|
+| `template list` or `template` | List all templates grouped by category |
+| `template show <name>` | Show template commands and required parameters |
+| `template use <name> [key=value ...]` | Render and execute the template |
+
+```
+> template show git-workflow
+> template use git-workflow message="fix login bug" branch=main
+```
+
+Built-in templates:
+
+| Template | Description | Parameters |
+|----------|-------------|------------|
+| `backup` | Archive a directory with a timestamp | `source_dir`, `backup_name` |
+| `git-workflow` | `git add .`, commit, push | `message`, `branch` |
+| `python-project` | Create venv, install packages, write requirements | `project_name`, `packages` |
+| `docker-cleanup` | Stop and remove all containers, prune volumes and networks | — |
+| `web-server` | Start Python HTTP server | `port` |
+| `find-large-files` | Find files over a size threshold | `directory`, `size`, `limit` |
+| `system-info` | Print CPU, memory, disk, and network info | — |
+
+## Workflows
+
+Workflows chain multiple commands into a named, repeatable sequence. Each step has its own timeout, retry count, and an execution condition based on the previous step's result.
+
+| Command | Description |
+|---------|-------------|
+| `workflow list` | List all workflows with step counts and run history |
+| `workflow show <name>` | Display all steps with commands and conditions |
+| `workflow run <name>` | Execute every step in order |
+
+```
+> workflow run deploy
+Running workflow 'deploy'...
+✓ Pull code
+✓ Install dependencies
+✓ Run tests
+✓ Deploy
+✅ Workflow completed successfully!
+```
+
+### Step conditions
+
+Steps can be conditioned on the result of the previous step:
+
+| Condition | Behavior |
+|-----------|----------|
+| `always` | Always execute this step |
+| `on_success` | Only execute if the previous step succeeded |
+| `on_failure` | Only execute if the previous step failed |
+
+### YAML workflow format
+
+Create a YAML file at `~/.prometheus/workflows/<name>.yaml` to define a workflow:
+
+```yaml
+name: ci-pipeline
+description: Run tests and deploy on success
+category: deployment
+
+variables:
+  branch: main
+
+steps:
+  - name: Checkout
+    command: git checkout ${branch}
+
+  - name: Install dependencies
+    command: npm install
+    timeout: 600
+
+  - name: Run tests
+    command: npm test
+    condition: always
+    retry: 2
+
+  - name: Deploy
+    command: ./deploy.sh
+    condition: on_success
+
+  - name: Rollback on failure
+    command: ./rollback.sh
+    condition: on_failure
+```
+
+Built-in workflows include `deploy`, `backup-project`, `system-update`, and `docker-rebuild`.
+
+## Remote execution
+
+Run commands on SSH hosts without leaving Prometheus. Host configuration is stored in `~/.prometheus/remote_hosts.json`.
+
+| Command | Description |
+|---------|-------------|
+| `remote list` | Show all configured hosts |
+| `remote add <name> <user@hostname>` | Register an SSH host |
+| `remote remove <name>` | Remove a host |
+| `remote exec <host> <command>` | Run a command on the remote host |
+| `remote test <host>` | Verify SSH connectivity |
+
+```
+> remote add prod deploy@prod.example.com
+> remote test prod
+> remote exec prod "df -h"
+```
+
+<Note>
+  Remote execution uses SSH under the hood. Make sure your SSH key is available (`ssh-add`) or specify a key file when adding the host with `remote add`.
+</Note>
+
+## Watch and timing
+
+| Command | Description |
+|---------|-------------|
+| `watch <command>` | Repeat command every 2 seconds |
+| `watch <command> --interval <seconds>` | Custom repeat interval |
+| `watch <command> --until-change` | Stop when output changes |
+| `time <command>` | Measure execution time |
+| `benchmark <command> [runs]` | Run N times and show statistics |
+
+```
+> watch "df -h" --interval 5
+> benchmark "ls -la" 10
+```
+
+## Quick actions
+
+Quick actions run without consulting the AI model — they are direct utility functions available as flags.
+
+| Flag | Description |
+|------|-------------|
+| `--qr "text"` | Generate a QR code in the terminal as ASCII art |
+| `--hash "text"` | Print MD5, SHA1, SHA256, and SHA512 hashes |
+| `--hash [algo] "text"` | Print a single hash (`md5`, `sha1`, `sha256`, `sha512`) |
+| `--time [location]` | Show current time for a city or timezone |
+| `--encode [format] "text"` | Encode text (`base64`, `base32`, `base16`, `hex`, `url`) |
+| `--decode [format] "text"` | Decode text using the same formats |
+| `--calc "expression"` | Evaluate a math expression safely |
+| `--shorten "url"` | Generate a hash-based short code for a URL (local only, not a hosted short link) |
+
+```bash
+prom --qr "https://example.com"
+prom --hash sha256 "my secret"
+prom --time "Tokyo"
+prom --encode base64 "hello world"
+prom --calc "2 ** 10 + 42"
+```
+
+The calculator uses Python's `ast` module to parse expressions safely — it supports `+`, `-`, `*`, `/`, `**`, `%`, and `//` without executing arbitrary code.
+
+World clock supports these location names: `utc`, `new york`, `los angeles`, `london`, `paris`, `tokyo`, `sydney`, `dubai`, `mumbai`, `beijing`. You can also pass any IANA timezone string directly.
+
+## Environment variables
+
+| Command | Description |
+|---------|-------------|
+| `env` or `env list` | List current environment variables |
+| `env set <key> <value>` | Set an environment variable |
+| `env get <key>` | Get the value of a variable |
+| `env load <name>` | Restore a previously saved environment |
+| `env save [name]` | Snapshot the current environment |
+
+## Export and import
+
+| Command | Description |
+|---------|-------------|
+| `export <filename>` | Export config, history, and bookmarks to a file |
+| `import <filename>` | Import a previously exported config |
+
+## Cache management
+
+Prometheus caches AI responses to speed up repeated queries. The default TTL is 60 minutes.
+
+| Command | Description |
+|---------|-------------|
+| `cache stats` | Show hit rate, miss count, and number of cached entries |
+| `cache clear` | Delete all cached responses |
+| `cache clean` | Remove expired entries only |
+
+```
+> cache stats
+Cache Hits:    15
+Cache Misses:  5
+Hit Rate:      75%
+Cached Entries: 12
+```
+
+## Health check
+
+```
+> doctor
+```
+
+Runs a comprehensive system check covering Python version, installed dependencies, configuration validity, API key presence, Ollama availability, Git installation, disk space (warns below 5 GB), available memory, and network connectivity.
+
+## Multiline command builder
+
+```
+> multiline
+```
+
+Opens an interactive multi-line prompt for building complex commands across multiple lines before submitting them to the AI or executing them directly.

@@ -1,0 +1,90 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Prometheus",
+  "projectDescription": "An AI-powered terminal assistant that translates natural language into shell commands and executes them safely, supporting Google Gemini and local Ollama backends.",
+  "theme": "luma",
+  "primaryColor": "#040404",
+  "lightColor": "#7c7c7c",
+  "darkColor": "#c3c3c3",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Usage",
+            "pages": [
+              "usage/interactive-mode",
+              "usage/one-shot-mode",
+              "usage/commands-reference"
+            ]
+          },
+          {
+            "group": "AI Configuration",
+            "pages": [
+              "ai/gemini-setup",
+              "ai/ollama-setup",
+              "ai/switching-models"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/safety",
+              "features/plugins",
+              "features/productivity",
+              "features/search"
+            ]
+          },
+          {
+            "group": "Configuration & Troubleshooting",
+            "pages": [
+              "configuration",
+              "troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Natural language to shell command translation via Google Gemini or Ollama",
+    "Interactive and one-shot execution modes",
+    "Safety system with dangerous command detection and dry-run preview",
+    "Plugin system for custom command extensions",
+    "Smart command history with analytics and bash-style bang commands",
+    "Context-aware suggestions for Git, Python, Node.js, and Docker projects",
+    "Quick actions: QR codes, hashing, encoding, world clock, calculator",
+    "Fuzzy file search, codebase search, and smart grep",
+    "Productivity tools: bookmarks, notes, favorites, aliases, templates, workflows",
+    "Remote command execution over SSH",
+    "AI-powered error recovery with fix suggestions"
+  ],
+  "publicApiSurface": [
+    "prom \"<natural language query>\"",
+    "prom (interactive mode)",
+    "prom update",
+    "prom uninstall",
+    "prom info",
+    "prom --version",
+    "prom config show|edit|reset",
+    "prom history [clear|export]",
+    "prom --fix",
+    "prom --explain",
+    "prom --qr \"<text>\"",
+    "prom --hash \"<text>\"",
+    "prom --time \"<location>\"",
+    "plugin list|install|uninstall|create",
+    "workflow list|show|run",
+    "template list|show|use",
+    "remote list|add|remove|exec|test"
+  ]
+}

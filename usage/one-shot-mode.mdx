@@ -1,0 +1,189 @@
+---
+title: "One-shot mode: execute single queries from the shell"
+description: "Pass a natural language query directly to prom on the command line, get a result, and return to your shell — no interactive session required."
+---
+
+One-shot mode lets you run Prometheus as a non-interactive command. Pass your query as a quoted string argument and Prometheus translates it, executes the resulting command, and exits with a standard exit code. This makes it easy to use Prometheus in shell scripts, CI pipelines, cron jobs, or any workflow where you want AI-assisted commands without starting a session.
+
+## Basic syntax
+
+```bash
+prom "natural language query"
+```
+
+The query can be as long or as specific as you like. Prometheus sends it to the AI model, shows the resolved command in a panel, applies any necessary safety prompts, and then runs it.
+
+## Examples
+
+<Tabs>
+  <Tab title="Natural language queries">
+    <CodeGroup>
+
+    ```bash File operations
+    prom "list my files"
+    prom "show hidden files"
+    prom "find all python files in this directory"
+    prom "create a file called notes.txt"
+    prom "find files modified today"
+    prom "find large files"
+    ```
+
+    ```bash System information
+    prom "show disk usage"
+    prom "check memory usage"
+    prom "what's my IP address"
+    prom "show system uptime"
+    prom "list running processes"
+    prom "show CPU usage"
+    ```
+
+    ```bash Development tasks
+    prom "find all TODO comments in python files"
+    prom "count lines of code in this project"
+    prom "show git status"
+    prom "run tests"
+    prom "install dependencies"
+    prom "build the project"
+    ```
+
+    ```bash Network operations
+    prom "check if port 8080 is open"
+    prom "show active connections"
+    prom "download https://example.com/file.zip"
+    prom "test connection to google.com"
+    ```
+
+    </CodeGroup>
+  </Tab>
+  <Tab title="Direct flag commands">
+    These flags bypass the AI and run a built-in action immediately.
+
+    | Flag | Description | Example |
+    |---|---|---|
+    | `--fix` | Analyze and fix the last failed command | `prom --fix` |
+    | `--explain` | Explain the last executed command | `prom --explain` |
+    | `--qr TEXT` | Generate a QR code for the given text | `prom --qr "https://example.com"` |
+    | `--hash TEXT` | Generate MD5, SHA1, SHA256, and SHA512 hashes for TEXT | `prom --hash "hello world"` |
+    | `--time [LOCATION]` | Show world time; omit location for multiple zones | `prom --time "Tokyo"` |
+    | `--encode TYPE TEXT` | Encode text using TYPE (e.g., `base64`, `hex`) | `prom --encode base64 "hello"` |
+    | `--shorten URL` | Generate a hash-based short code for a URL | `prom --shorten "https://example.com/long/path"` |
+    | `--dry-run` | Enable preview mode — show the resolved command without running it | `prom --dry-run` |
+    | `--version` | Print the installed Prometheus version | `prom --version` |
+    | `--no-banner` | Start without printing the welcome banner | `prom --no-banner` |
+
+    <Note>
+      `--encode` takes two separate arguments: the encoding type and the text. Example: `prom --encode base64 "my text"`. `--decode`, `--calc`, and `--shorten` are available as interactive commands inside a session but are also exposed as `--encode` and `--shorten` at the CLI level.
+    </Note>
+  </Tab>
+  <Tab title="Subcommands">
+    Subcommands manage Prometheus itself rather than executing queries.
+
+    <AccordionGroup>
+      <Accordion title="System management">
+        | Command | Description |
+        |---|---|
+        | `prom update` | Pull the latest code from git and update dependencies |
+        | `prom uninstall` | Remove Prometheus from the system (preserves `~/.prometheus`) |
+        | `prom info` | Show version, install location, Python version, and active AI model |
+      </Accordion>
+      <Accordion title="Configuration">
+        | Command | Description |
+        |---|---|
+        | `prom config show` | Print a table of all current config values |
+        | `prom config edit` | Open `~/.prometheus/config.json` in `$EDITOR` |
+        | `prom config reset` | Reset all settings to defaults after confirmation |
+      </Accordion>
+      <Accordion title="History management">
+        | Command | Description |
+        |---|---|
+        | `prom history` | Show the last 20 history entries |
+        | `prom history clear` | Clear all history after confirmation |
+        | `prom history export [filename]` | Export history to a JSON file (default: `prometheus_history.json`) |
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+</Tabs>
+
+## Exit codes
+
+Prometheus exits with a standard code so you can use it in conditional shell logic:
+
+| Code | Meaning |
+|---|---|
+| `0` | The command ran and succeeded |
+| `1` | The command ran and failed, or Prometheus encountered an error |
+
+## Dry-run in one-shot mode
+
+Pass `--dry-run` to enable preview mode. This causes Prometheus to show the generated command without executing it:
+
+```bash
+prom --dry-run
+```
+
+When `--dry-run` is active, Prometheus sets `dry_run: true` in your config. Any subsequent queries — whether run in the same session or a new interactive session — will be previewed but not executed. Disable it again with `prom config set dry_run false` or `> dry-run off` in an interactive session.
+
+## Using one-shot mode in scripts
+
+Because Prometheus exits with a proper exit code, you can chain it with standard shell constructs.
+
+<CodeGroup>
+
+```bash Error handling
+#!/bin/bash
+prom "create a backup of /var/www"
+if [ $? -eq 0 ]; then
+    echo "Backup successful!"
+    prom "compress the backup folder"
+else
+    echo "Backup failed!"
+    exit 1
+fi
+```
+
+```bash Chaining commands
+# Run two queries in sequence, stop on first failure
+prom "install dependencies" && prom "run tests"
+
+# Conditional fallback
+prom "find python files" || echo "No Python files found"
+```
+
+```bash Cron job
+# Add to crontab — daily backup at 2 AM
+0 2 * * * /usr/local/bin/prom "backup important files" >> /var/log/backup.log 2>&1
+```
+
+```bash Piping output
+# Filter Prometheus output with other tools
+prom "list my files" | grep ".py"
+
+# Save output to a file
+prom "show system info" | tee system-report.txt
+```
+
+```bash Timestamp export
+# Export history with a date stamp
+prom history export "history_$(date +%Y%m%d).json"
+```
+
+</CodeGroup>
+
+## Safety in one-shot mode
+
+One-shot mode applies the same safety checks as interactive mode. If Prometheus detects a potentially destructive command (for example, one that uses `rm -rf`), it displays a warning panel and asks for confirmation before proceeding. To preview dangerous commands safely, use `--dry-run`.
+
+<Warning>
+  Dangerous commands always require interactive confirmation. There is no auto-confirm flag yet — use `--dry-run` to inspect the resolved command first.
+</Warning>
+
+## When to use each mode
+
+<CardGroup cols={2}>
+  <Card title="Use one-shot mode when" icon="bolt">
+    Running a quick single task, scripting automation, integrating with CI/CD pipelines, setting up cron jobs, or chaining Prometheus with other shell tools.
+  </Card>
+  <Card title="Use interactive mode when" icon="comments">
+    Exploring and experimenting, running several related commands in sequence, taking advantage of conversation context, or learning what commands do.
+  </Card>
+</CardGroup>

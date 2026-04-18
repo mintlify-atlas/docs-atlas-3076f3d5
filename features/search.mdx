@@ -1,0 +1,219 @@
+---
+title: "File search and project navigation in Prometheus"
+description: "Prometheus provides fuzzy file search, grep integration, codebase symbol lookup, project analysis, and context-aware suggestions for navigating codebases."
+---
+
+Prometheus includes a suite of search and navigation commands designed to help you find files, locate code, understand project structure, and surface the right commands for your current context — all without leaving the terminal.
+
+## Fuzzy file search
+
+```
+> find <pattern>
+```
+
+Searches the current directory tree for filenames that contain `<pattern>` (case-insensitive). Results are limited to 50 matches. Internally this runs `find . -type f -iname "*<pattern>*"` with a 10-second timeout.
+
+```
+> find config
+./config.json
+./src/config/settings.py
+./docker/config.yaml
+```
+
+## File content search
+
+```
+> grep <pattern>
+```
+
+Searches the content of files for `<pattern>`. Prometheus uses `rg` (ripgrep) when available for faster results, falling back to `grep -rn` otherwise. Output is displayed with file paths and line numbers, limited to 2000 characters of output.
+
+```
+> grep "def authenticate"
+utils/auth.py:42:def authenticate(user, password):
+core/session.py:18:def authenticate_session(token):
+```
+
+## Codebase search
+
+```
+> search <name>
+```
+
+Finds files across the codebase that contain `<name>` — useful for locating function definitions, class names, or constants. By default it searches `.py`, `.js`, `.java`, `.cpp`, `.c`, `.go`, and `.rs` files. Results are shown in a table with filename and directory, limited to 20 matches.
+
+```
+> search BookmarkManager
+File               Path
+BookmarkManager    utils/productivity.py  ./utils
+```
+
+## Project analysis
+
+```
+> analyze
+```
+
+Walks the current directory (skipping `.git`, `node_modules`, and `__pycache__`) and prints a summary table:
+
+- Current directory path
+- Whether a Git repository is detected
+- Total file count
+- Total project size in MB
+- Top 5 file extensions by count
+
+If the directory is a Git repository, Prometheus also shows the current branch and total commit count.
+
+```
+> analyze
+Property        Value
+Directory       /home/user/my-app
+Git Repository  Yes
+Total Files     312
+Total Size      4.21 MB
+Files (.py)     128
+Files (.md)     24
+Files (.json)   18
+Git Branch:     main
+Total Commits:  87
+```
+
+## Project description
+
+```
+> describe
+> describe project
+> project info
+> about
+```
+
+All four commands show a description of the current project. Prometheus reads project metadata — `package.json`, `pyproject.toml`, `README.md`, or `Cargo.toml` — to generate a summary without requiring AI inference.
+
+## Context-aware commands
+
+```
+> ref
+> reference
+```
+
+Detects the type of project in the current directory and displays a panel of relevant commands. Prometheus checks for:
+
+- **Git**: presence of `.git`
+- **Python**: presence of `requirements.txt`, `pyproject.toml`, or `setup.py`
+- **Node.js**: presence of `package.json`
+- **Docker**: presence of `Dockerfile` or `docker-compose.yml`
+
+For a Python project you might see suggestions like `pytest`, `pip install -r requirements.txt`, and `python -m venv venv`. For a Docker project you'd see `docker build`, `docker-compose up -d`, and similar commands.
+
+## Quick status
+
+```
+> status
+```
+
+Prints a concise summary of the current directory: file count, disk usage, and — if inside a Git repository — the current branch and the number of uncommitted changes.
+
+## History search and analytics
+
+<Tabs>
+  <Tab title="Interactive browser">
+    ```
+    > history ui
+    ```
+
+    Opens a full-screen history browser. Use arrow keys to navigate entries, Enter to re-run a command, `F` to request an AI fix for a failed command, `E` to explain a command, and `Q` to quit.
+
+    ```
+    [✓] 09:15 | git status
+    [✗] 09:16 | npm install
+    [✓] 09:20 | git commit -m "fix login"
+    ```
+  </Tab>
+  <Tab title="Analytics">
+    ```
+    > history analysis
+    ```
+
+    Shows aggregate statistics across your full history:
+
+    - Total and unique command count
+    - Overall success rate
+    - Peak usage hour
+    - Most-used commands ranked by frequency
+
+    ```
+    Total Commands:   247
+    Unique Commands:  45
+    Success Rate:     94%
+    Peak Hour:        15:00
+
+    Most Used Commands:
+     1. git (45 times)
+     2. ls  (32 times)
+     3. cd  (28 times)
+    ```
+  </Tab>
+  <Tab title="Failed commands">
+    ```
+    > history failed
+    ```
+
+    Filters history to show only commands that exited with a non-zero status, making it easy to identify recurring problems.
+  </Tab>
+</Tabs>
+
+## Usage statistics
+
+```
+> stats
+```
+
+Shows your session statistics: commands run, success rate, most frequently used tools, and cache hit rate. This is a lighter-weight summary than `history analysis` — it covers the current session rather than the full history.
+
+## Combining search with AI queries
+
+Search commands compose naturally with Prometheus's AI layer.
+
+<Steps>
+  <Step title="Find relevant files">
+    ```
+    > find requirements
+    ./requirements.txt
+    ./requirements-dev.txt
+    ```
+  </Step>
+  <Step title="Search for a symbol">
+    ```
+    > search SafetyLevel
+    File        Path
+    safety.py   ./utils
+    ```
+  </Step>
+  <Step title="Ask the AI in context">
+    ```
+    > explain what SafetyLevel does in utils/safety.py
+    ```
+
+    Prometheus passes the current directory and recent commands as context, so the AI can give a more relevant answer.
+  </Step>
+  <Step title="Analyze before diving in">
+    ```
+    > analyze
+    > ref
+    ```
+
+    Use `analyze` to understand project scale and `ref` to get the most useful commands for this project type before asking the AI to make changes.
+  </Step>
+</Steps>
+
+<Tip>
+  The `ref` command updates its suggestions dynamically. Run it whenever you switch into an unfamiliar project directory to get a curated list of commands appropriate for that stack.
+</Tip>
+
+## Project structure display
+
+```
+> show project structure
+```
+
+Prometheus runs `tree -L 2` (excluding `.git`, `__pycache__`, `node_modules`, and `.venv`) if the `tree` command is available, falling back to `find . -maxdepth 2` otherwise. This gives you a quick visual overview without navigating the filesystem manually.

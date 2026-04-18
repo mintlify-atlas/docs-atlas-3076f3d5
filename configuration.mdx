@@ -1,0 +1,151 @@
+---
+title: "Configure Prometheus with config.json settings"
+description: "All Prometheus settings live in ~/.prometheus/config.json. View, edit, or reset them using built-in commands or by editing the JSON file directly."
+---
+
+Prometheus stores its configuration in `~/.prometheus/config.json`. You can manage settings through built-in interactive commands, through CLI subcommands, or by editing the JSON file directly in a text editor. Changes take effect on the next command Prometheus processes.
+
+## Configuration file location
+
+```
+~/.prometheus/config.json
+```
+
+<Note>
+The `~/.prometheus/` directory also contains `history.json`, `prompt_history`, and a `plugins/` subdirectory. Deleting the directory removes all history, plugins, and settings.
+</Note>
+
+## Viewing configuration
+
+<Tabs>
+  <Tab title="Interactive mode">
+    Start Prometheus and type `config` to print all current settings:
+
+    ```
+    > config
+    ```
+  </Tab>
+  <Tab title="CLI">
+    Run the following from your terminal to display a formatted table of all settings and their current values:
+
+    ```bash
+    prom config show
+    ```
+  </Tab>
+</Tabs>
+
+## Editing configuration
+
+<Tabs>
+  <Tab title="Interactive mode">
+    Use `config set <key> <value>` inside Prometheus. The value is parsed automatically: `true` and `false` become booleans, numeric strings become integers, and everything else is stored as a string.
+
+    ```
+    > config set timeout_seconds 30
+    > config set use_gemini true
+    > config set dry_run false
+    > config set default_model llama3:8b
+    ```
+
+    Changes are saved immediately to `~/.prometheus/config.json`.
+  </Tab>
+  <Tab title="CLI (editor)">
+    Open the config file in your `$EDITOR` (defaults to `nano` if `$EDITOR` is not set):
+
+    ```bash
+    prom config edit
+    ```
+
+    Save and exit to apply changes.
+  </Tab>
+</Tabs>
+
+## Resetting configuration
+
+To restore all settings to their factory defaults, use the CLI subcommand:
+
+```bash
+prom config reset
+```
+
+<Warning>
+Resetting configuration overwrites all customised values. Your history and plugins are not affected.
+</Warning>
+
+## Available settings
+
+The following settings are defined in `core/config.py` and are present in every fresh `config.json`.
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `timeout_seconds` | int | `300` | Default command timeout in seconds (5 minutes). |
+| `short_timeout` | int | `30` | Timeout used for quick commands. |
+| `long_timeout` | int | `1800` | Timeout for long-running operations (30 minutes). |
+| `default_model` | string | `"llama3"` | Ollama model name used when `use_gemini` is `false`. |
+| `use_gemini` | bool | `true` | Use Google Gemini as the AI backend. Falls back to Ollama if `GEMINI_API_KEY` is not set. |
+| `gemini_model` | string | `"gemini-2.0-flash-exp"` | Gemini model identifier. |
+| `auto_confirm_safe` | bool | `false` | Automatically confirm commands classified as safe without prompting. |
+| `history_size` | int | `100` | Maximum number of entries to retain in command history. |
+| `color_scheme` | string | `"default"` | Terminal color scheme. |
+| `dry_run` | bool | `false` | Preview generated commands without executing them. |
+| `log_level` | string | `"INFO"` | Logging verbosity. Set to `"DEBUG"` for verbose output. |
+| `ollama_host` | string | `"http://localhost:11434"` | Ollama API endpoint. |
+
+## Example config.json
+
+A complete configuration file with all default values:
+
+```json config.json
+{
+  "timeout_seconds": 300,
+  "short_timeout": 30,
+  "long_timeout": 1800,
+  "default_model": "llama3",
+  "auto_confirm_safe": false,
+  "history_size": 100,
+  "color_scheme": "default",
+  "dry_run": false,
+  "log_level": "INFO",
+  "ollama_host": "http://localhost:11434",
+  "use_gemini": true,
+  "gemini_model": "gemini-2.0-flash-exp"
+}
+```
+
+## Common configuration examples
+
+<CodeGroup>
+
+```bash Increase timeout
+# Interactive
+config set timeout_seconds 60
+
+# CLI
+prom config edit
+```
+
+```bash Switch to Ollama
+# Interactive
+config set use_gemini false
+
+# Or use the shorthand model switch command
+use ollama
+```
+
+```bash Enable dry-run by default
+# Interactive
+config set dry_run true
+
+# Toggle off again
+config set dry_run false
+```
+
+```bash Use a smaller Ollama model
+config set default_model llama3:8b
+```
+
+</CodeGroup>
+
+<Tip>
+You can toggle dry-run mode quickly during an interactive session with `dry-run on` and `dry-run off` without modifying the config file permanently.
+</Tip>

@@ -1,80 +1,149 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quickstart: run your first Prometheus command"
+description: "Run your first natural-language command, explore the interactive prompt, and learn the essential built-in commands to start using Prometheus effectively."
 ---
 
-## Get started in three steps
+Once Prometheus is installed, you can start issuing natural-language commands immediately — no configuration required beyond an AI backend. This guide walks you through one-shot mode, the interactive session, and the built-in commands you'll use most often.
 
-Get your documentation site running locally and make your first customization.
+## Your first command
 
-### Step 1: Set up your local environment
+One-shot mode lets you pass a single query as a quoted argument. Prometheus translates it, confirms if the command looks safe, and executes it.
+
+```bash
+prom "list my files"
+```
+
+Prometheus sends the query to your configured AI backend, receives a shell command (in this case, `ls -la`), runs a safety check, then executes it and streams the output back to your terminal.
+
+Try a few more one-shot queries to get a feel for the translation:
+
+```bash
+prom "show disk usage"
+prom "find all python files"
+prom "what's my IP address"
+prom "show system information"
+```
+
+<Tip>
+  Use quotes around your query so your shell does not try to interpret special characters. Single quotes work too: `prom 'find files larger than 100MB'`.
+</Tip>
+
+## Interactive mode
+
+For multi-step tasks, start an interactive session by running `prom` with no arguments. Prometheus keeps conversation context between queries, so you can refer back to previous results with natural language.
+
+```bash
+prom
+```
+
+You will see the Prometheus banner and a `>` prompt. Type queries just as you would in one-shot mode, but without quotes:
+
+```
+> list my files
+> create a file called notes.txt with "Hello World"
+> show contents of notes.txt
+> find all python files in this directory
+> show me disk usage
+```
+
+Because Prometheus maintains context across queries, follow-up requests like "add a line to it" or "show it again" resolve correctly to the file or command from the previous turn.
+
+### Dry-run mode
+
+Before running an unfamiliar command, enable dry-run mode to preview what Prometheus would execute without actually running it:
+
+```
+> dry-run on
+> delete old_backup.tar.gz
+$ rm old_backup.tar.gz
+Dry-run mode: Command not executed
+> dry-run off
+```
+
+## Special commands overview
+
+These built-in commands are handled directly by Prometheus without going through the AI — they give you control over the session, configuration, and history.
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+  <Accordion title="help">
+    Display the full list of available commands, flags, and quick actions.
+
+    ```
+    > help
+    ```
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+  <Accordion title="config">
+    Show the current configuration or change individual settings. Prometheus stores config in `~/.prometheus/config.json`.
+
+    ```
+    > config
+    > config set timeout_seconds 30
+    > config set auto_confirm_safe true
+    ```
+
+    Common config keys:
+
+    | Key | Default | Description |
+    |---|---|---|
+    | `timeout_seconds` | `300` | Seconds before a command times out |
+    | `default_model` | `llama3` | Ollama model name |
+    | `auto_confirm_safe` | `false` | Skip confirmation for safe commands |
+    | `history_size` | `100` | Number of commands to retain |
+
+    To reset all settings to defaults, use the CLI subcommand: `prom config reset`.
+  </Accordion>
+  <Accordion title="history">
+    Show, replay, or clear previous commands.
+
+    ```
+    > history          # Show all history
+    > history 5        # Show last 5 entries
+    > !!               # Repeat the last command
+    > !3               # Repeat command at index 3
+    > !git             # Repeat the last git command
+    > clear-history    # Clear all history
+    ```
+  </Accordion>
+  <Accordion title="exit / quit">
+    End the interactive session.
+
+    ```
+    > exit
+    ```
+
+    You can also use `quit` or `q`.
   </Accordion>
 </AccordionGroup>
 
-### Step 2: Deploy your changes
+## Safety in action
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Prometheus warns you before running commands that are potentially destructive. If it detects patterns like `rm -rf`, it will pause and ask for explicit confirmation:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+```
+> delete all log files
+⚠ DANGER: This command contains 'rm -rf' which could be destructive!
+Are you SURE you want to run this? [y/N]:
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Type `y` to proceed or press **Enter** to cancel. You can also use `dry-run on` at any time to preview commands before committing to them.
 
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Warning>
+  Confirmation prompts are a safety net, not a guarantee. Always review the generated command before confirming, especially for file deletion or system-modification operations.
+</Warning>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Interactive mode" icon="terminal" href="/usage/interactive-mode">
+    Learn keyboard shortcuts, context-aware suggestions, and session management in depth.
+  </Card>
+  <Card title="Commands reference" icon="list" href="/usage/commands-reference">
+    Complete reference for every subcommand, flag, and quick action available in Prometheus.
+  </Card>
+  <Card title="Gemini setup" icon="key" href="/ai/gemini-setup">
+    Configure your Gemini API key and switch between Gemini and Ollama at runtime.
+  </Card>
+  <Card title="Safety features" icon="shield" href="/features/safety">
+    Understand how dangerous command detection, timeouts, and dry-run mode protect your system.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,170 @@
+---
+title: "Install Prometheus on Linux, macOS, or from source"
+description: "Install Prometheus system-wide with a single script, or set up a local development environment manually. Requires Python 3.8+ and either a Gemini API key or Ollama."
+---
+
+Prometheus can be installed in two ways: a system-wide installation using `system-install.sh` (recommended for everyday use), or a manual development setup inside a Python virtual environment. Both methods clone the same repository and install the same dependencies; the difference is whether a global command wrapper is created on your `PATH`.
+
+## Prerequisites
+
+Before you install, make sure the following are available on your system.
+
+- **Python 3.8 or higher** — Prometheus is tested against Python 3.8, 3.9, 3.10, and 3.11.
+- **Git** — required to clone the repository.
+- **An AI backend** — you need at least one of:
+  - A [Google Gemini API key](https://aistudio.google.com/apikey) (free, cloud-based, recommended), **or**
+  - [Ollama](https://ollama.ai/) installed with the `llama3` model pulled.
+
+<Note>
+  The default command alias set during installation is `prom`. You can choose any alias you prefer when the installer prompts you, such as `ai` or `p`.
+</Note>
+
+## System-wide installation
+
+The `system-install.sh` script copies Prometheus to a permanent directory, creates a Python virtual environment, installs all dependencies, and writes a wrapper script to your `PATH`. Run it with `sudo` for a system-wide install (`/opt/prometheus`, `/usr/local/bin`), or without `sudo` for a per-user install (`~/.local/share/prometheus`, `~/.local/bin`).
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/roywalk3r/prometheus.git
+    cd prometheus
+    ```
+  </Step>
+  <Step title="Run the installer">
+    ```bash
+    sudo bash system-install.sh
+    ```
+
+    The installer will:
+    - Verify Python 3.8+ is available
+    - Create the installation directory and copy all files
+    - Create a Python virtual environment inside the install directory
+    - Install all Python dependencies from `requirements.txt`
+  </Step>
+  <Step title="Choose a command alias">
+    When prompted, enter a short alias or press **Enter** to accept the default:
+
+    ```
+    Enter command alias [default: prom]:
+    ```
+
+    The installer creates an executable wrapper at `/usr/local/bin/<alias>` (system-wide) or `~/.local/bin/<alias>` (per-user).
+  </Step>
+  <Step title="Configure an AI model">
+    The installer will ask whether you want to use Gemini. Select your preferred backend:
+
+    <Tabs>
+      <Tab title="Gemini (recommended)">
+        Enter your Gemini API key when prompted. The installer writes it to your shell config (`~/.bashrc` or `~/.zshrc`) as:
+
+        ```bash
+        export GEMINI_API_KEY="AIza..."
+        ```
+
+        After the installer finishes, reload your shell config so the key takes effect:
+
+        ```bash
+        source ~/.bashrc   # or source ~/.zshrc
+        ```
+      </Tab>
+      <Tab title="Ollama (local)">
+        Press **n** at the Gemini prompt to use Ollama instead. Make sure Ollama is already running and the `llama3` model is available:
+
+        ```bash
+        ollama pull llama3
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Add the bin directory to PATH (if needed)">
+    If you installed without `sudo`, the installer places the wrapper in `~/.local/bin`. If that directory is not already on your `PATH`, add it:
+
+    ```bash
+    export PATH="$PATH:$HOME/.local/bin"
+    ```
+
+    Add that line to `~/.bashrc` or `~/.zshrc` to make it permanent.
+  </Step>
+</Steps>
+
+## Manual / development installation
+
+Use this method when you want to run Prometheus from the source directory without modifying system paths — for example, when contributing to the project.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/roywalk3r/prometheus.git
+    cd prometheus
+    ```
+  </Step>
+  <Step title="Create a virtual environment">
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    This installs the following packages:
+
+    | Package | Purpose |
+    |---|---|
+    | `rich>=13.7.0` | Terminal formatting and colors |
+    | `prompt-toolkit>=3.0.43` | Interactive prompt with history |
+    | `google-genai>=0.2.0` | Google Gemini API client |
+    | `pyqrcode>=1.2.1` | QR code generation |
+    | `pytz>=2024.1` | World clock / timezone support |
+    | `pyyaml>=6.0` | Configuration file parsing |
+  </Step>
+  <Step title="Set up your AI backend">
+    Export your Gemini API key, or ensure Ollama is running:
+
+    <CodeGroup>
+      ```bash gemini
+      export GEMINI_API_KEY="AIza..."
+      ```
+
+      ```bash ollama
+      ollama pull llama3
+      ```
+    </CodeGroup>
+  </Step>
+  <Step title="Run Prometheus">
+    ```bash
+    python main.py
+    ```
+
+    For one-shot mode, pass your query as a quoted argument:
+
+    ```bash
+    python main.py "list my files"
+    ```
+  </Step>
+</Steps>
+
+## Post-install verification
+
+After either installation method, confirm everything is working:
+
+```bash
+prom --help
+```
+
+You should see the Prometheus help output listing available subcommands and flags. If the command is not found, verify that the alias binary directory is on your `PATH`.
+
+<Warning>
+  If you see `command not found: prom`, check that the directory printed by the installer ("Executable: ...") is included in your `PATH`. Then reload your shell config or open a new terminal.
+</Warning>
+
+To check which AI model is active, start an interactive session and run:
+
+```
+prom
+> model
+```
+
+Prometheus will show whether Gemini or Ollama is currently active, and whether the required credentials or service are available.

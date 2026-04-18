@@ -1,0 +1,174 @@
+---
+title: 'Use local Ollama models to run Prometheus offline'
+description: 'Install Ollama, pull the llama3 model, and run Prometheus fully offline without sending any data to a cloud service.'
+---
+
+Ollama is the privacy-first AI option for Prometheus. All inference happens on your local machine — no data leaves your network, no API key is required, and there are no rate limits. Prometheus falls back to Ollama automatically when `GEMINI_API_KEY` is not set, or you can explicitly configure it as the active backend.
+
+## When to choose Ollama over Gemini
+
+<CardGroup cols={2}>
+  <Card title="Privacy" icon="lock">
+    Commands and file context never leave your machine. Ideal for sensitive codebases or confidential data.
+  </Card>
+  <Card title="Offline use" icon="wifi-off">
+    Works without an internet connection. Useful in air-gapped environments or when traveling.
+  </Card>
+  <Card title="No API limits" icon="infinity">
+    Unlimited requests. No daily quotas, no rate limits, no billing.
+  </Card>
+  <Card title="Specific models" icon="sliders">
+    Run any model available in the Ollama library, not just those Google exposes via API.
+  </Card>
+</CardGroup>
+
+## Installing Ollama
+
+<Steps>
+  <Step title="Install Ollama">
+    <Tabs>
+      <Tab title="Linux">
+        Run the official install script:
+
+        ```bash
+        curl -fsSL https://ollama.ai/install.sh | sh
+        ```
+
+        The script installs the `ollama` binary and registers a systemd service that starts automatically on boot.
+      </Tab>
+      <Tab title="macOS">
+        Download the macOS app from [https://ollama.ai](https://ollama.ai) and drag it to your Applications folder. Launch it once to start the background service, then use the `ollama` CLI from your terminal.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Pull the llama3 model">
+    Prometheus uses `llama3` by default (configured via `default_model` in `~/.prometheus/config.json`). Pull it before starting Prometheus:
+
+    ```bash
+    ollama pull llama3
+    ```
+
+    This downloads approximately 4.7 GB. Subsequent runs use the cached model with no download.
+  </Step>
+  <Step title="Verify Ollama is running">
+    Confirm the service is up and the model is available:
+
+    ```bash
+    ollama list
+    ```
+
+    You should see `llama3` listed with its size and digest. If the command hangs or fails, start the service manually:
+
+    ```bash
+    ollama serve
+    ```
+  </Step>
+</Steps>
+
+## Configuring Prometheus to use Ollama
+
+Prometheus picks Ollama automatically when `GEMINI_API_KEY` is absent. To explicitly disable Gemini and force Ollama even when the key is present, run the following inside an interactive Prometheus session:
+
+```text
+> config set use_gemini false
+```
+
+This writes `"use_gemini": false` to `~/.prometheus/config.json`. The change persists across restarts.
+
+You can also edit the config file directly:
+
+```json ~/.prometheus/config.json
+{
+  "use_gemini": false,
+  "default_model": "llama3",
+  "ollama_host": "http://localhost:11434"
+}
+```
+
+## Verifying Ollama is active
+
+Start Prometheus and check the startup banner. When Ollama is the active backend you will see:
+
+```text
+🤖 Using Ollama (Local AI)
+```
+
+<Info>
+  If you also have `GEMINI_API_KEY` set but want to use Ollama, make sure `use_gemini` is `false` in your config. Prometheus checks `use_gemini` before attempting to contact Gemini.
+</Info>
+
+## Ollama host and port
+
+By default Prometheus connects to Ollama at `http://localhost:11434`. This default is defined in `core/config.py` as `ollama_host`. If you run Ollama on a different host or port, update the value in `~/.prometheus/config.json`:
+
+```json ~/.prometheus/config.json
+{
+  "ollama_host": "http://192.168.1.50:11434"
+}
+```
+
+## Using a different Ollama model
+
+Any model you have pulled with `ollama pull` can be used by changing `default_model`:
+
+```json ~/.prometheus/config.json
+{
+  "use_gemini": false,
+  "default_model": "mistral"
+}
+```
+
+Some well-supported options:
+
+| Model | Command | Notes |
+|---|---|---|
+| llama3 | `ollama pull llama3` | Default. Good balance of speed and quality. |
+| mistral | `ollama pull mistral` | Fast, strong at instruction following. |
+| codellama | `ollama pull codellama` | Optimised for code tasks. |
+| phi3 | `ollama pull phi3` | Lightweight, good on lower-end hardware. |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused or Ollama not responding">
+    Prometheus calls Ollama via subprocess (`ollama run <model>`). If Ollama is not running, you will see an error like `No AI model available`.
+
+    ```bash
+    # Check if the service is active
+    ollama list
+
+    # Restart on Linux via systemd
+    systemctl restart ollama
+
+    # Or start manually
+    ollama serve
+    ```
+  </Accordion>
+  <Accordion title="Model not found">
+    If Prometheus reports an error about the model, the requested model has not been pulled yet.
+
+    ```bash
+    ollama pull llama3
+    ```
+
+    Confirm the model name in `~/.prometheus/config.json` under `default_model` matches exactly what `ollama list` shows.
+  </Accordion>
+  <Accordion title="Slow responses">
+    Ollama runs inference on CPU by default if no compatible GPU is detected. Response times of 5–30 seconds per request are normal on CPU-only hardware. To improve speed:
+
+    - Use a smaller model such as `phi3`.
+    - Ensure Ollama has access to your GPU (see the Ollama documentation for GPU setup).
+    - Switch to Gemini for latency-sensitive work: `> config set use_gemini true`.
+  </Accordion>
+  <Accordion title="Prometheus ignores use_gemini false and still tries Gemini">
+    Prometheus reads `use_gemini` from `~/.prometheus/config.json` via `get_config()`. If the file has a syntax error, the config falls back to defaults which have `use_gemini: true`.
+
+    Validate the file is valid JSON:
+
+    ```bash
+    python3 -c "import json; json.load(open('~/.prometheus/config.json'.replace('~', __import__('os').path.expanduser('~'))))"
+    ```
+
+    If it raises an error, run `prom config reset` to restore defaults and re-apply your changes.
+  </Accordion>
+</AccordionGroup>

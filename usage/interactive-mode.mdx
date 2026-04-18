@@ -1,0 +1,172 @@
+---
+title: "Interactive mode: conversational terminal sessions"
+description: "Start a persistent Prometheus session, type natural language at the prompt, navigate history with bang commands, and use keyboard shortcuts to stay productive."
+---
+
+Interactive mode is the default way to use Prometheus. Run `prom` with no arguments and you get a persistent session where you type natural language queries one after another, with full history, alias expansion, context awareness, and AI model switching — all without leaving the terminal.
+
+## Starting interactive mode
+
+Run your alias with no arguments:
+
+```bash
+prom
+```
+
+Prometheus prints the welcome banner, shows which AI model is active (Gemini or Ollama), and presents the prompt:
+
+```
+🔥 prometheus ❯
+```
+
+Type any natural language query and press Enter. Prometheus translates it into a shell command, shows you any safety warnings, asks for confirmation when needed, and executes.
+
+```
+🔥 prometheus ❯ list my files
+🔥 prometheus ❯ find all python files in this directory
+🔥 prometheus ❯ show disk usage
+```
+
+Press **Ctrl+C** at any time to cancel the current input and return to the prompt. To exit the session entirely, type `exit`, `quit`, or `q` — or press **Ctrl+D**.
+
+## Alias expansion
+
+Before any query is processed, Prometheus checks whether the first word matches a saved alias. If it does, the alias is silently expanded and the full form is shown in dim text so you can see exactly what ran:
+
+```
+🔥 prometheus ❯ gs
+→ git status
+```
+
+Manage aliases with the `alias` commands described in the [commands reference](/usage/commands-reference).
+
+## History commands
+
+Prometheus keeps a persistent history of every query and the command it generated. Use the following commands to review and replay that history.
+
+<AccordionGroup>
+  <Accordion title="Viewing history">
+    | Command | Description |
+    |---|---|
+    | `history` | Show full command history |
+    | `history 20` | Show the last 20 entries |
+    | `history ui` | Open the interactive history browser |
+    | `history failed` | List only commands that exited with an error |
+    | `history analysis` | Show usage statistics and patterns |
+    | `history analyze` | Alias for `history analysis` |
+    | `clear-history` | Prompt to delete all history |
+  </Accordion>
+  <Accordion title="Bang commands">
+    Bang commands let you replay past commands without retyping them.
+
+    | Command | Description |
+    |---|---|
+    | `!!` | Repeat the last command |
+    | `!3` | Repeat the command at history index 3 |
+    | `!git` | Repeat the last command that starts with `git` |
+    | `!-2` | Repeat the command two entries ago |
+
+    When a bang command resolves, Prometheus prints the matched command in dim text before executing it.
+  </Accordion>
+</AccordionGroup>
+
+## Keyboard shortcuts
+
+These shortcuts work inside the interactive prompt without typing any command.
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl+Space** | Trigger auto-completion for paths and commands |
+| **Ctrl+X Ctrl+E** | Open the current prompt text in `$EDITOR` (falls back to `nano`) |
+| **Alt+E** | Pre-fill the prompt with `explain <last command>` |
+| **Ctrl+L** | Clear the screen and redraw the banner |
+| **Ctrl+R** | Reverse-search through prompt history |
+| **Alt+H** | Show a keyboard shortcut reference panel |
+| **Ctrl+D** | Exit Prometheus (same as `exit`) |
+| **Ctrl+C** | Cancel the current input and return to the prompt |
+
+## Context awareness
+
+Prometheus detects the type of project in your current directory (Git repositories, Python environments, Node.js projects, Docker setups) and adjusts its suggestions accordingly. Use these commands to inspect what context it has picked up.
+
+<CardGroup cols={2}>
+  <Card title="status" icon="circle-info">
+    Show a quick summary of the current directory: git branch, Python environment, Node version, and Docker status.
+  </Card>
+  <Card title="ref / reference" icon="book">
+    Display context-relevant command suggestions based on the detected project type.
+  </Card>
+  <Card title="analyze" icon="magnifying-glass">
+    Run a deeper analysis of the project: file counts, code structure, and dependency information.
+  </Card>
+  <Card title="describe / about" icon="tag">
+    Show a human-readable description of the project inferred from its files.
+  </Card>
+</CardGroup>
+
+## Session commands
+
+| Command | Description |
+|---|---|
+| `session` / `session info` | Show details about the current session: uptime, command count, active context |
+| `session clear` | Clear the in-memory conversation context so the AI starts fresh |
+
+## AI model commands
+
+<Tabs>
+  <Tab title="Check active model">
+    ```
+    🔥 prometheus ❯ model
+    ```
+    Shows which model is currently configured and whether it is reachable.
+  </Tab>
+  <Tab title="Switch to Gemini">
+    ```
+    🔥 prometheus ❯ use gemini
+    ```
+    Saves the preference and switches to Google Gemini 2.0 Flash. Requires the `GEMINI_API_KEY` environment variable.
+
+    Aliases: `use-gemini`, `switch gemini`, `model gemini`
+  </Tab>
+  <Tab title="Switch to Ollama">
+    ```
+    🔥 prometheus ❯ use ollama
+    ```
+    Saves the preference and switches to the local Ollama model (`llama3`). Requires Ollama running on `localhost:11434`.
+
+    Aliases: `use-ollama`, `switch ollama`, `model ollama`
+  </Tab>
+</Tabs>
+
+## Dry-run mode
+
+Dry-run mode shows you what command Prometheus would run without actually executing it. Toggle it during a session:
+
+```
+🔥 prometheus ❯ dry-run on
+🔥 prometheus ❯ dry-run off
+```
+
+You can also enable dry-run before starting a session using the CLI flag:
+
+```bash
+prom --dry-run
+```
+
+This sets `dry_run: true` in `~/.prometheus/config.json`. Remember to disable it when done with `dry-run off` inside Prometheus.
+
+<Note>
+  When dry-run is active, Prometheus displays a reminder at startup indicating that no commands will execute.
+</Note>
+
+## Other session commands
+
+| Command | Description |
+|---|---|
+| `help` / `?` | Print the full help reference |
+| `examples` / `suggestions` | Show a curated list of example queries |
+| `clear` / `cls` | Clear the terminal screen |
+| `welcome` | Redisplay the welcome screen |
+| `terminate` | Stop a currently running background process |
+| `stats` | Show command history statistics (total, success rate, most-used) |
+| `doctor` | Run a health check on the Prometheus installation |

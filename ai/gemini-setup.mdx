@@ -1,0 +1,189 @@
+---
+title: 'Set up Google Gemini as your Prometheus AI backend'
+description: 'Get a Gemini API key from Google AI Studio and configure it as the Prometheus AI backend for fast, cloud-powered command generation.'
+---
+
+Google Gemini is the recommended AI backend for Prometheus. It runs in the cloud via Google's API, so it delivers faster responses and higher accuracy than local models without requiring any GPU hardware. Prometheus defaults to Gemini when a valid `GEMINI_API_KEY` is present, and automatically falls back to Ollama if the key is missing.
+
+## Prerequisites
+
+- A Google account
+- An internet connection
+- The `google-genai` Python package (`pip install google-genai`)
+
+## Getting your API key
+
+<Steps>
+  <Step title="Open Google AI Studio">
+    Navigate to [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey) and sign in with your Google account. Accept the terms of service if prompted.
+  </Step>
+  <Step title="Create an API key">
+    Click **Get API Key** or **Create API Key**, then select **Create API key in new project**. Google generates a key that begins with `AIza`.
+  </Step>
+  <Step title="Copy and store the key">
+    Copy the key immediately. You will not be able to view it in full again after leaving the page.
+
+    <Warning>
+      Never commit your API key to a git repository or share it publicly. Treat it like a password.
+    </Warning>
+  </Step>
+  <Step title="Set the environment variable">
+    Export `GEMINI_API_KEY` in your shell so Prometheus can detect it at startup (see the configuration section below).
+  </Step>
+</Steps>
+
+## Setting the environment variable
+
+<Tabs>
+  <Tab title="Linux/Mac — current session">
+    Sets the key for the current terminal session only. The key is lost when you close the shell.
+
+    ```bash
+    export GEMINI_API_KEY="AIzaSyD..."
+    ```
+  </Tab>
+  <Tab title="Linux/Mac — permanent">
+    Appends the export to your shell profile so it is set automatically on every login.
+
+    ```bash bash (~/.bashrc)
+    echo 'export GEMINI_API_KEY="AIzaSyD..."' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+    If you use Zsh, replace `~/.bashrc` with `~/.zshrc`.
+  </Tab>
+  <Tab title="Windows — Command Prompt">
+    Sets the key for the current Command Prompt session.
+
+    ```cmd
+    set GEMINI_API_KEY=AIzaSyD...
+    ```
+  </Tab>
+  <Tab title="Windows — PowerShell">
+    Sets the key for the current PowerShell session.
+
+    ```powershell
+    $env:GEMINI_API_KEY="AIzaSyD..."
+    ```
+  </Tab>
+  <Tab title="Windows — permanent">
+    To persist the key across sessions:
+
+    1. Search for **Environment Variables** in the Start menu.
+    2. Click **Environment Variables**.
+    3. Under **User variables**, click **New**.
+    4. Set **Variable name** to `GEMINI_API_KEY` and **Variable value** to your key.
+    5. Click **OK** and restart any open terminals.
+  </Tab>
+</Tabs>
+
+## Verifying the connection
+
+Start Prometheus and check the startup output. When Gemini is active you will see:
+
+```text
+🤖 Using Gemini AI (Google)
+```
+
+If you see the following message instead, the key is not detected:
+
+```text
+🤖 Using Ollama (Local AI)
+💡 Tip: Set GEMINI_API_KEY environment variable to use Gemini
+```
+
+You can also confirm the variable is set without starting Prometheus:
+
+```bash
+echo $GEMINI_API_KEY
+# Should print your key, not an empty line
+```
+
+## Available Gemini models
+
+The default model is set in `~/.prometheus/config.json` under the `gemini_model` key. Prometheus uses `gemini-2.0-flash-exp` out of the box.
+
+```json ~/.prometheus/config.json
+{
+  "use_gemini": true,
+  "gemini_model": "gemini-2.0-flash-exp"
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="gemini-2.0-flash-exp" icon="bolt">
+    **Recommended.** The fastest model with strong accuracy. Best for everyday command generation.
+  </Card>
+  <Card title="gemini-1.5-pro" icon="star">
+    More powerful and capable of longer reasoning chains. Slower than Flash.
+  </Card>
+  <Card title="gemini-1.5-flash" icon="gauge">
+    A balanced middle ground between speed and capability.
+  </Card>
+</CardGroup>
+
+To switch models, edit `gemini_model` in `~/.prometheus/config.json` and restart Prometheus.
+
+## Free tier limits
+
+The Gemini free tier is sufficient for personal daily use.
+
+| Limit | Value |
+|---|---|
+| Requests per minute | 15 |
+| Requests per day | 1,500 |
+| Tokens per minute | 1,000,000 |
+
+Monitor your usage at [https://aistudio.google.com](https://aistudio.google.com). If you hit the daily limit, switch to Ollama temporarily:
+
+```text
+> config set use_gemini false
+```
+
+## Security best practices
+
+<Note>
+  The most secure way to supply your API key is through an environment variable, not by writing it into a file that could be committed to version control.
+</Note>
+
+- Store the key as an environment variable or in a `.env` file.
+- Add `.env` to your `.gitignore` before committing anything.
+- Rotate your key periodically from the Google AI Studio dashboard.
+- Use separate keys for different projects so you can revoke one without affecting others.
+- Never hardcode the key in source files or paste it into chat windows.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="API key not valid">
+    The error `Gemini error: API key not valid` means the key is incorrect or has been revoked.
+
+    1. Go to [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+    2. Delete the old key and create a new one.
+    3. Update `GEMINI_API_KEY` with the new value and restart Prometheus.
+  </Accordion>
+  <Accordion title="Quota exceeded">
+    You have hit the free tier daily limit of 1,500 requests.
+
+    - Wait for the quota to reset (resets daily).
+    - Switch to Ollama in the meantime: run `> config set use_gemini false` inside Prometheus.
+    - Consider using `gemini-1.5-flash` which may have different quota tracking than the experimental model.
+  </Accordion>
+  <Accordion title="Prometheus is using Ollama instead of Gemini">
+    Prometheus only activates Gemini when `GEMINI_API_KEY` is non-empty and the `google-genai` package is installed.
+
+    ```bash
+    # Check the key is set
+    echo $GEMINI_API_KEY
+
+    # Install the package if missing
+    pip install google-genai
+
+    # Set the key and restart
+    export GEMINI_API_KEY="your-key-here"
+    python main.py
+    ```
+
+    Also confirm `use_gemini` is `true` in `~/.prometheus/config.json`.
+  </Accordion>
+</AccordionGroup>

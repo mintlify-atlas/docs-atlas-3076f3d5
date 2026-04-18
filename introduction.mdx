@@ -1,0 +1,113 @@
+---
+title: "Prometheus: AI terminal assistant for natural language"
+description: "Prometheus is an AI-powered CLI that translates plain English into shell commands, executes them safely, and keeps a searchable history of every run."
+---
+
+Prometheus is an AI-powered terminal assistant that lets you describe what you want in plain English and translates that into a shell command, checks it for safety, then executes it — all without leaving your terminal. It supports Google Gemini and local Ollama as AI backends, so you can choose between a fast cloud-based model or a fully private, offline one.
+
+## Explore the docs
+
+<CardGroup cols={2}>
+  <Card title="Install Prometheus" icon="download" href="/installation">
+    Set up Prometheus system-wide or in a development environment on Linux and macOS.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first natural-language command and explore interactive mode in 5 minutes.
+  </Card>
+  <Card title="Commands reference" icon="terminal" href="/usage/commands-reference">
+    Full reference for one-shot mode, interactive mode, subcommands, and flags.
+  </Card>
+  <Card title="Gemini setup" icon="key" href="/ai/gemini-setup">
+    Get a free Gemini API key and configure Prometheus to use Google's AI model.
+  </Card>
+</CardGroup>
+
+## How it works
+
+When you type a natural-language request, Prometheus passes it through a four-stage pipeline before anything touches your shell.
+
+1. **Input** — You type a plain-English description, either as a one-shot argument (`prom "show disk usage"`) or interactively at the `>` prompt.
+2. **AI generation** — The request is sent to the configured AI backend (Gemini or Ollama), which returns a concrete shell command.
+3. **Safety check** — `utils/safety.py` classifies the command against a set of rules. Dangerous or long-running commands trigger a warning and require explicit confirmation.
+4. **Execution** — `core/executor.py` runs the command with an intelligent timeout and streams output back to the terminal.
+
+## Supported AI backends
+
+Prometheus works with two AI backends. You can switch between them at any time with `use gemini` or `use ollama` inside an interactive session.
+
+<Tabs>
+  <Tab title="Gemini (recommended)">
+    Google Gemini is the default and recommended backend. It is fast, accurate, and free to use with a personal API key.
+
+    **Requirements:**
+    - A `GEMINI_API_KEY` environment variable set to a valid key
+    - Internet access
+
+    **Model used:** Gemini 2.0 Flash
+
+    ```bash
+    export GEMINI_API_KEY="AIza..."
+    prom "find all TODO comments in python files"
+    ```
+
+    <Tip>
+      Get a free API key at [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey). The system-install script can store it in your shell config automatically.
+    </Tip>
+  </Tab>
+  <Tab title="Ollama (local)">
+    Ollama runs a local language model on your own hardware. No data leaves your machine, and no API key is required.
+
+    **Requirements:**
+    - [Ollama](https://ollama.ai/) installed and running on `localhost:11434`
+    - The `llama3` model pulled locally
+
+    ```bash
+    ollama pull llama3
+    prom "show git status"
+    ```
+
+    <Note>
+      Ollama responses may be slower than Gemini, depending on your hardware. Run `ollama list` to confirm the model is available before starting Prometheus.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Architecture
+
+Prometheus is organized into three top-level modules. Each module has a single responsibility.
+
+```
+prometheus/
+├── main.py                    # Entry point and main interactive loop
+├── ai/
+│   ├── model.py               # Unified AI interface (Gemini + Ollama)
+│   ├── gemini_model.py        # Google Gemini integration
+│   └── context.py             # Conversation context for better responses
+├── core/
+│   ├── executor.py            # Command execution engine with timeouts
+│   ├── history.py             # Command history management
+│   ├── config.py              # Configuration (~/.prometheus/config.json)
+│   └── plugins.py             # Plugin system
+└── utils/
+    ├── safety.py              # Dangerous command detection and validation
+    ├── command_classifier.py  # Timeout classification by command type
+    ├── command_sanitizer.py   # Command optimization for script compatibility
+    ├── ui.py                  # Rich terminal formatting helpers
+    ├── quick_actions.py       # URL shortener, QR codes, hashing, encoding
+    ├── search.py              # Fuzzy file and codebase search
+    ├── keyboard.py            # Keyboard shortcuts
+    ├── smart_history.py       # History analytics and bang-command replay
+    └── context_commands.py    # Project-aware suggestions (Git, Docker, etc.)
+```
+
+<AccordionGroup>
+  <Accordion title="ai/ — AI model interface">
+    `ai/model.py` is the single entry point for all AI calls. It checks the `use_gemini` config flag and routes the request to either `gemini_model.py` (cloud) or the Ollama HTTP API (local). `ai/context.py` maintains a rolling window of recent commands so the AI can resolve pronouns like "it" or "that file".
+  </Accordion>
+  <Accordion title="core/ — Execution and state">
+    `core/executor.py` spawns shell commands as subprocesses, applies per-command timeouts calculated by `command_classifier.py`, and surfaces a `terminate_process()` function used by the `terminate` command. `core/config.py` reads and writes `~/.prometheus/config.json`. `core/plugins.py` discovers and loads third-party plugins from `~/.prometheus/plugins/`.
+  </Accordion>
+  <Accordion title="utils/ — Safety and UI">
+    `utils/safety.py` defines a `SafetyLevel` enum and checks every generated command for destructive patterns (e.g., `rm -rf`) before execution. `utils/ui.py` uses the [Rich](https://github.com/Textualize/rich) library for colored output, panels, and the startup banner.
+  </Accordion>
+</AccordionGroup>

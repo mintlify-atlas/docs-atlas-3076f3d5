@@ -1,0 +1,301 @@
+---
+title: "Troubleshooting Prometheus: common errors and fixes"
+description: "Resolve the most common Prometheus problems: AI not generating commands, model errors, Ollama connection issues, permission errors, and slow responses."
+---
+
+Most Prometheus issues stem from AI model configuration or environment setup. The sections below cover the most common problems and their solutions. If you are unsure where to start, run the `doctor` command inside Prometheus — it checks your AI backend, configuration validity, dependencies, and more.
+
+<AccordionGroup>
+
+  <Accordion title="AI not generating commands">
+    **Symptom:** Prometheus responds with conversational text instead of a shell command.
+
+    ```
+    > add a welcome text to it
+    I'm ready to assist you!
+    ```
+
+    **Solutions:**
+
+    Use explicit action verbs and imperative phrasing so the AI recognises your intent as a command request:
+
+    | Instead of | Try |
+    |---|---|
+    | `add a welcome text to it` | `append "welcome" to test.txt` |
+    | `make the file have hello` | `write "hello" to notes.txt` |
+
+    If the problem started after changing settings, restart Prometheus to load the updated configuration:
+
+    ```
+    > exit
+    $ prom
+    ```
+  </Accordion>
+
+  <Accordion title="Wrong command generated">
+    **Symptom:** The AI generates a command that does not match your intent, often due to case sensitivity or ambiguous filenames.
+
+    ```
+    > remove the hello from test.txt
+    $ sed -i 's/Hello//g' test.txt   # Wrong case
+    ```
+
+    **Solutions:**
+
+    Be specific about case and exact filenames:
+
+    ```
+    > remove all lines containing "hello" from test.txt
+    > replace "hello" with "hi" case-insensitive in test.txt
+    ```
+
+    Use dry-run to preview the generated command before it runs:
+
+    ```
+    > dry-run on
+    > remove hello from test.txt
+    $ sed -i '/hello/d' test.txt   # Preview — not executed
+    > dry-run off
+    ```
+  </Accordion>
+
+  <Accordion title="GEMINI_API_KEY not set or invalid">
+    **Symptom:** Prometheus falls back to Ollama or shows a warning about the API key.
+
+    Check whether the key is exported in your current shell:
+
+    ```bash
+    echo $GEMINI_API_KEY
+    ```
+
+    If the output is empty, export the key:
+
+    ```bash
+    export GEMINI_API_KEY="your_key_here"
+    ```
+
+    To make this permanent, add the line to your shell config file (`~/.bashrc` or `~/.zshrc`) and reload it:
+
+    ```bash
+    source ~/.bashrc
+    ```
+
+    If your key is expired or invalid, generate a new one at [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+  </Accordion>
+
+  <Accordion title="Gemini quota exceeded">
+    **Symptom:** Prometheus returns a quota or rate-limit error when using Gemini.
+
+    The free Gemini tier resets daily. You can either wait for the reset or switch to a local Ollama model:
+
+    ```
+    > config set use_gemini false
+    ```
+
+    Or using the shorthand inside Prometheus:
+
+    ```
+    > use ollama
+    ```
+  </Accordion>
+
+  <Accordion title="Ollama connection refused">
+    **Symptom:** Prometheus reports that Ollama is not found or cannot connect.
+
+    ```
+    Ollama not found. Please install Ollama and the llama3 model.
+    ```
+
+    Check whether the Ollama service is running:
+
+    ```bash
+    ollama list
+    ```
+
+    If it is not running, start it:
+
+    <Tabs>
+      <Tab title="Linux">
+        ```bash
+        systemctl restart ollama
+        # or
+        ollama serve
+        ```
+      </Tab>
+      <Tab title="macOS">
+        Restart the Ollama app from the menu bar, or run:
+
+        ```bash
+        ollama serve
+        ```
+      </Tab>
+    </Tabs>
+
+    Verify the service responds correctly:
+
+    ```bash
+    ollama run llama3 "test"
+    ```
+  </Accordion>
+
+  <Accordion title="Model not found (Ollama)">
+    **Symptom:** Ollama is running but the requested model is not available.
+
+    Pull the default model:
+
+    ```bash
+    ollama pull llama3
+    ```
+
+    Confirm it appears in the model list:
+
+    ```bash
+    ollama list
+    ```
+  </Accordion>
+
+  <Accordion title="Permission errors running commands">
+    Prometheus executes commands as the current user. If a command requires elevated privileges, include `sudo` in your natural language query:
+
+    ```
+    > show all processes as root
+    > install nginx with sudo
+    ```
+
+    <Warning>
+    Prometheus will warn you before running any command that contains `sudo` or other potentially dangerous operations. Review the generated command carefully before confirming.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Command timed out">
+    **Symptom:** A process is killed after the default 300-second timeout.
+
+    ```
+    ⏰ Process killed after 300s timeout.
+    ```
+
+    Increase the timeout for long-running commands:
+
+    ```
+    > config set timeout_seconds 600
+    ```
+
+    To stop a running process manually before the timeout, use:
+
+    ```
+    > terminate
+    ```
+
+    For commands that are expected to run indefinitely, consider running them directly in your shell rather than through Prometheus.
+  </Accordion>
+
+  <Accordion title="Prometheus not found after installation">
+    **Symptom:** Running `prom` returns `command not found`.
+
+    The installer adds an alias to your shell config file. Re-source it to load the alias in your current session:
+
+    <Tabs>
+      <Tab title="bash">
+        ```bash
+        source ~/.bashrc
+        ```
+      </Tab>
+      <Tab title="zsh">
+        ```bash
+        source ~/.zshrc
+        ```
+      </Tab>
+    </Tabs>
+
+    Verify the alias was written correctly:
+
+    ```bash
+    grep prom ~/.bashrc
+    ```
+
+    If the alias is missing, you can run Prometheus directly:
+
+    ```bash
+    python /opt/prometheus/main.py
+    ```
+  </Accordion>
+
+  <Accordion title="Configuration not persisting">
+    **Symptom:** Changes made with `config set` revert after restarting.
+
+    Check the config file exists and is readable:
+
+    ```bash
+    cat ~/.prometheus/config.json
+    ```
+
+    If the file has incorrect permissions, fix them:
+
+    ```bash
+    chmod 644 ~/.prometheus/config.json
+    chmod 755 ~/.prometheus
+    ```
+
+    To verify a change saved correctly, set the value and then inspect it:
+
+    ```
+    > config set timeout_seconds 30
+    > config
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+## Running a health check
+
+The `doctor` command runs a full diagnostic check and prints a table of results covering your AI backend, configuration file, dependencies, disk space, memory, and shell integration:
+
+```
+> doctor
+```
+
+For each failing check, `doctor` also prints a recommended fix.
+
+## Getting help
+
+<CardGroup cols={2}>
+  <Card title="In-session help" icon="circle-question">
+    Type `help` or `?` inside Prometheus to see a full list of available commands and examples.
+  </Card>
+  <Card title="Shell help" icon="terminal">
+    Run `prom --help` from your terminal to see all CLI flags and subcommands.
+  </Card>
+</CardGroup>
+
+## Debug tips
+
+<Steps>
+  <Step title="Enable dry-run mode">
+    Preview every generated command before it runs. No command is executed while dry-run is active.
+
+    ```
+    > dry-run on
+    ```
+  </Step>
+  <Step title="Explain a command">
+    Use `--explain` to ask Prometheus to describe what the last command does instead of running it:
+
+    ```bash
+    prom --explain
+    ```
+  </Step>
+  <Step title="Enable debug logging">
+    Set `log_level` to `DEBUG` to see verbose output that can help identify what is going wrong:
+
+    ```
+    > config set log_level DEBUG
+    ```
+  </Step>
+  <Step title="Check command history">
+    Review past commands and their success status to identify patterns:
+
+    ```
+    > history 20
+    ```
+  </Step>
+</Steps>

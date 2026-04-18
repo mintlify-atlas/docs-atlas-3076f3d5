@@ -1,0 +1,201 @@
+---
+title: "Safety features: protect your system from bad commands"
+description: "Prometheus flags dangerous commands, auto-adjusts timeouts, prompts before destructive operations, and previews changes with dry-run mode before execution."
+---
+
+Prometheus treats safety as a first-class concern. Before executing any command, it classifies the operation by potential impact, warns you of destructive patterns, and gives you a chance to review or cancel — all without interrupting your workflow.
+
+## Safety levels
+
+Every command is assigned one of four safety levels defined in `utils/safety.py`:
+
+<CardGroup cols={2}>
+  <Card title="SAFE" icon="circle-check">
+    Read-only commands like `ls`, `pwd`, `cat`, `grep`, `df`, and `ps`. These run without prompts.
+  </Card>
+  <Card title="CAUTION" icon="triangle-exclamation">
+    System-modifying commands like `apt install`, `pip install`, `brew install`, and commands prefixed with `sudo`.
+  </Card>
+  <Card title="DANGEROUS" icon="skull">
+    Destructive commands including `rm -rf`, `mkfs`, `fdisk`, `wipefs`, `shutdown`, and piping to a shell (`| sh`, `| bash`).
+  </Card>
+  <Card title="LONG_RUNNING" icon="clock">
+    Commands like `ping`, `find /`, `tail -f`, `watch`, `sleep`, and `while true` that may run indefinitely.
+  </Card>
+</CardGroup>
+
+## Dangerous command detection
+
+Prometheus scans every command against a list of known-harmful patterns before execution. If a match is found, it halts and warns you:
+
+```
+⚠️  DANGER: This command contains 'rm -rf' which could be destructive!
+```
+
+The following patterns trigger a `DANGEROUS` classification:
+
+| Pattern | Reason |
+|---------|--------|
+| `rm -rf`, `rm -fr` | Recursive forced deletion |
+| `:(){` | Fork bomb syntax |
+| `mkfs`, `fdisk`, `parted`, `wipefs` | Disk formatting |
+| `shutdown`, `reboot` | System power commands |
+| `dd if=` | Raw disk write |
+| `chmod -R 777` | Removes all permission restrictions |
+| `> /dev/sda` | Overwrites disk device |
+| `mv / ` | Moves root filesystem |
+| `| sh`, `| bash`, `| zsh` | Pipe-to-shell injection |
+
+Commands starting with `sudo` receive a `CAUTION` classification with the warning:
+
+```
+⚡ This command requires elevated privileges
+```
+
+## Long-running command detection
+
+Commands expected to run for an extended time are flagged with:
+
+```
+⏳ This command might take a long time (contains 'find /')
+```
+
+Long-running patterns include: `ping`, `find /`, `sleep`, `dd`, `cat /dev`, `yes`, `tail -f`, `watch`, `while true`, and `for i in`.
+
+## Confirmation prompts
+
+When Prometheus detects a `DANGEROUS` command, it requires explicit confirmation before proceeding. A `CAUTION` command displays the warning inline and continues with a softer prompt, allowing you to press Enter to accept or type `n` to cancel.
+
+For `DANGEROUS` commands the prompt blocks execution until you explicitly confirm, preventing accidental runs of destructive operations.
+
+## Dry-run mode
+
+Dry-run mode lets you see what Prometheus would execute without actually running anything. It is useful for verifying AI-generated commands before committing to them.
+
+<Tabs>
+  <Tab title="Interactive toggle">
+    ```
+    > dry-run on
+    ```
+
+    All subsequent commands are previewed but not executed. Disable with:
+
+    ```
+    > dry-run off
+    ```
+  </Tab>
+  <Tab title="Config file">
+    Set `dry_run` in `~/.prometheus/config.json`:
+
+    ```json
+    {
+      "dry_run": true
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Combine dry-run mode with workflows (`workflow run <name>`) to preview every step before committing to a multi-step automation.
+</Tip>
+
+## Intelligent timeouts
+
+Prometheus automatically selects a timeout for each command using `utils/command_classifier.py`. Instead of a single global timeout, commands are placed in one of three buckets:
+
+<AccordionGroup>
+  <Accordion title="Quick commands (default: 30 seconds)">
+    Commands that complete almost instantly: `ls`, `cd`, `pwd`, `echo`, `cat`, `grep`, `mkdir`, `rm`, `mv`, `cp`, `chmod`, `stat`, and similar file and process utilities.
+  </Accordion>
+  <Accordion title="Normal commands (default: 300 seconds)">
+    Commands that may take moderate time, including piped commands (`|`), chained commands (`&&`, `;`), and anything not recognized as quick or long.
+  </Accordion>
+  <Accordion title="Long-running commands (default: 1800 seconds)">
+    Package managers (`apt`, `yum`, `dnf`, `pacman`, `brew`, `pip`, `npm`, `yarn`, `cargo`), build tools (`make`, `cmake`, `gcc`, `gradle`, `bazel`), download tools (`wget`, `curl`, `git clone`, `rsync`), Docker operations (`docker build`, `docker pull`, `docker-compose`), database dumps (`mysqldump`, `pg_dump`), and archive operations (`tar`, `zip`, `7z`).
+  </Accordion>
+</AccordionGroup>
+
+You can override these defaults in `~/.prometheus/config.json`:
+
+```json
+{
+  "timeout_seconds": 300,
+  "short_timeout": 30,
+  "long_timeout": 1800
+}
+```
+
+## Command sanitization
+
+Before a command is executed, Prometheus applies two layers of sanitization:
+
+1. **Whitespace normalization** (`utils/safety.py`): strips leading/trailing whitespace and collapses multiple consecutive spaces into a single space, preventing issues from pasted text or formatting artifacts.
+2. **Script compatibility** (`utils/command_sanitizer.py`): converts `apt` to `apt-get` for script-safe package management and adds `DEBIAN_FRONTEND=noninteractive` to `apt-get update`/`upgrade` commands to suppress interactive prompts.
+
+## Interactive command detection
+
+Prometheus recognizes interactive commands — those that require a live terminal — and handles them separately. The following tools are detected and run in interactive mode, giving them full terminal control:
+
+```
+nano, vim, vi, emacs, less, more, top, htop,
+man, ssh, ftp, telnet, mysql, psql, mongo
+```
+
+Interactive commands are never captured or piped; they receive your full terminal.
+
+## AI-powered error recovery
+
+When a command fails, Prometheus displays inline suggestions for common errors and offers AI-powered fix mode via the `--fix` flag.
+
+<Steps>
+  <Step title="Command fails">
+    Prometheus shows the exit code and error output, then prints:
+
+    ```
+    💡 Suggestions:
+     1. Check if the file path is correct (case-sensitive)
+     2. Verify the file exists: ls -la <path>
+    
+    Run 'prom --fix' for AI-powered fix
+    ```
+  </Step>
+  <Step title="Request a fix">
+    Run the fix flag from your shell:
+
+    ```bash
+    prom --fix
+    ```
+
+    Prometheus calls `analyze_and_suggest_fix`, which examines the exit code and error message to identify the problem.
+  </Step>
+  <Step title="Review and confirm">
+    Prometheus proposes a corrected command and asks for confirmation:
+
+    ```
+    💡 Smart Fix Detected:
+    Fixed: Typo detected. Changed 'gti' to 'git'.
+    
+    Suggested command: git status
+    
+    Run the fixed command? [Y/n]:
+    ```
+  </Step>
+  <Step title="Execute the fix">
+    Press Enter (or type `y`) to run the corrected command.
+  </Step>
+</Steps>
+
+### Errors Prometheus can auto-fix
+
+| Error | Detection | Fix |
+|-------|-----------|-----|
+| Shell syntax (`&&` in `/bin/sh`) | Exit code 2 + syntax error | Wraps in `bash -c '...'` |
+| Command typo | "command not found" | Corrects spelling |
+| Permission denied | Exit code 126 | Adds `sudo` |
+| Git not initialized | "not a git repository" | Prepends `git init &&` |
+| Missing Python module | "No module named" | Prepends `pip install <module> &&` |
+| Unmatched quotes | Exit code 2 | Adds missing quote |
+
+<Note>
+  For errors that cannot be auto-fixed (network issues, disk full, port conflicts), Prometheus provides an analysis panel with diagnostic guidance.
+</Note>

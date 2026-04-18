@@ -1,0 +1,158 @@
+---
+title: 'Switch AI backends between Gemini and Ollama'
+description: 'Switch the active AI backend mid-session with interactive commands or config file edits, and check which model Prometheus is currently using.'
+---
+
+Prometheus supports two AI backends — Google Gemini and local Ollama — and lets you switch between them without restarting. You can change the backend interactively using natural-language commands inside a running session, edit the config file directly, or use the `prom config` subcommand. The active backend is always visible in the startup banner.
+
+## Interactive commands
+
+Type any of the following inside an interactive Prometheus session to switch backends or check the current one.
+
+### Switch to Gemini
+
+All of the following phrases are recognised and do the same thing:
+
+```text
+> use gemini
+> use-gemini
+> switch gemini
+> model gemini
+```
+
+Prometheus sets `use_gemini` to `true` in your config and confirms the change. Subsequent requests in the same session use Gemini.
+
+<Note>
+  Switching to Gemini requires `GEMINI_API_KEY` to be set in your environment. If the key is missing, Prometheus logs a warning and stays on Ollama.
+</Note>
+
+### Switch to Ollama
+
+```text
+> use ollama
+> use-ollama
+> switch ollama
+> model ollama
+```
+
+Prometheus sets `use_gemini` to `false` and routes all subsequent requests to the local Ollama process.
+
+### Check the current backend
+
+```text
+> model
+> which model
+> current model
+> ai model
+```
+
+Prometheus prints the current backend and, for Gemini, the active model name (e.g. `gemini-2.0-flash-exp`). For Ollama it shows the `default_model` value from your config.
+
+## Config file method
+
+The config file at `~/.prometheus/config.json` is the source of truth. Any interactive switch also writes to this file so the choice persists across sessions.
+
+```json ~/.prometheus/config.json
+{
+  "use_gemini": true,
+  "gemini_model": "gemini-2.0-flash-exp",
+  "default_model": "llama3",
+  "ollama_host": "http://localhost:11434"
+}
+```
+
+Set `use_gemini` to `false` to use Ollama, or `true` to use Gemini. After editing the file, the next Prometheus session picks up the change automatically — no flag or argument needed.
+
+## Subcommand method
+
+Use the `prom config` subcommands to inspect and edit the config file from outside an interactive session:
+
+```bash
+# View current configuration
+prom config show
+
+# Open the config file in your default editor
+prom config edit
+
+# Reset all settings to defaults
+prom config reset
+```
+
+`prom config show` prints all keys including `use_gemini`, `gemini_model`, `default_model`, and `ollama_host` so you can confirm which backend is active before starting a session.
+
+## Gemini vs Ollama comparison
+
+| Feature | Gemini | Ollama |
+|---|---|---|
+| **Speed** | Fast (cloud inference) | Medium (local inference) |
+| **Accuracy** | Higher (latest Google models) | Good (depends on model) |
+| **Setup** | API key only | Install Ollama + pull model |
+| **Internet required** | Yes | No |
+| **Privacy** | Cloud-based | Fully local |
+| **Cost** | Free tier (1,500 req/day) | Free, unlimited |
+| **Default model** | gemini-2.0-flash-exp | llama3 |
+
+## Fallback behavior
+
+If `use_gemini` is `true` but `GEMINI_API_KEY` is not set in the environment, Prometheus does not error out. Instead it falls back to Ollama silently, as shown in `ai/model.py`:
+
+```python ai/model.py
+# Try Gemini first
+use_gemini = config.get("use_gemini", True)
+output = None
+
+if use_gemini and is_gemini_available():
+    output = ask_gemini(prompt, system_prompt)
+
+# Fallback to Ollama if Gemini not available or failed
+if output is None:
+    model = config.get("default_model", "llama3")
+    cmd = ["ollama", "run", model, ...]
+```
+
+`is_gemini_available()` returns `False` when `GEMINI_API_KEY` is empty or when the `google-genai` package is not installed, which triggers the Ollama path. The startup banner reflects which backend is actually in use, so always check it if you are unsure:
+
+```text
+🤖 Using Gemini AI (Google)   # Gemini is active
+🤖 Using Ollama (Local AI)    # Ollama is active (or Gemini fell back)
+```
+
+<Tip>
+  If you see the Ollama banner but expect Gemini, run `echo $GEMINI_API_KEY` to confirm the environment variable is exported in the current shell, and `pip show google-genai` to confirm the package is installed.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Interactive switch has no effect">
+    The config write may have failed if `~/.prometheus/` is not writable. Check permissions:
+
+    ```bash
+    ls -la ~/.prometheus/
+    ```
+
+    If `config.json` is owned by root or read-only, fix ownership:
+
+    ```bash
+    sudo chown -R $USER ~/.prometheus/
+    ```
+  </Accordion>
+  <Accordion title="Config shows use_gemini true but Ollama is being used">
+    This is the expected fallback behavior. Prometheus uses Gemini only when `GEMINI_API_KEY` is non-empty **and** `google-genai` is installed. Verify both:
+
+    ```bash
+    echo $GEMINI_API_KEY
+    pip show google-genai
+    ```
+
+    Set the key and install the package if either is missing, then restart Prometheus.
+  </Accordion>
+  <Accordion title="prom config edit opens the wrong editor">
+    `prom config edit` opens the file using the `$EDITOR` environment variable. Set it to your preferred editor:
+
+    ```bash
+    export EDITOR=nano
+    prom config edit
+    ```
+  </Accordion>
+</AccordionGroup>
